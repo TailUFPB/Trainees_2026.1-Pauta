@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+front/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -15,7 +16,15 @@
 
 # next.js
 /.next/
+front/.next/
 /out/
+
+# python / backend
+__pycache__/
+*.py[cod]
+back/.venv/
+back/uploads/
+.python-version
 
 # production
 /build

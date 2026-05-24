@@ -1,0 +1,22 @@
+# Postgres local com PostGIS + pgvector para desenvolvimento e testes.
+# Em produção este banco é substituído pelo Postgres do Supabase (que já traz as duas extensões).
+services:
+  db:
+    build:
+      context: ./infra/db
+    environment:
+      POSTGRES_USER: pauta
+      POSTGRES_PASSWORD: pauta
+      POSTGRES_DB: pauta
+    ports:
+      - "5432:5432"
+    volumes:
+      - pauta_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pauta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pauta_pgdata:
