@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pauta
 
-## Getting Started
+Plataforma de transparência política municipal: mapeia problemas de infraestrutura
+(geo), acompanha a resolução e recomenda candidatos por afinidade de pautas.
 
-First, run the development server:
+Este repositório contém a **espinha dorsal** do projeto — backend, banco e front base —
+onde os módulos de IA do time (LLM de fotos, recomendação, notificações) se conectam.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+pauta/
+├── back/      FastAPI + SQLAlchemy/GeoAlchemy2 + pgvector + Alembic
+├── front/     Next.js 16 (App Router) + Supabase + react-leaflet
+├── infra/db/  Imagem Postgres com PostGIS + pgvector (dev local)
+└── docker-compose.yml
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Stack e decisões
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Banco único**: Postgres com **PostGIS** (geometria dos problemas) + **pgvector**
+  (embeddings dos políticos). Em produção é o Postgres do **Supabase**.
+- **Auth**: Supabase Auth (JWT). O backend valida o token; o front usa a sessão do SDK.
+- **Storage de fotos**: Supabase Storage (com fallback local em dev).
+- **Notificações**: o backend só **produz eventos** na tabela `eventos_outbox`. O
+  Notification Service (dono a definir: Node/BullMQ ou Python/Celery) consome de lá.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Subir o ambiente
 
-## Learn More
+### 1. Banco (Docker)
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+docker compose up -d --build      # Postgres + PostGIS + pgvector na porta 5432
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 2. Backend
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+cd back
+cp .env.example .env              # ajuste SUPABASE_* para usar Auth/Storage reais
+uv sync
+uv run alembic upgrade head       # cria extensões + tabelas
+uv run uvicorn app.main:app --reload --port 8000
+```
 
-## Deploy on Vercel
+Docs interativas (Swagger): http://localhost:8000/docs
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+uv run pytest                     # roda os testes (precisa do banco no ar)
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 3. Front
+
+```bash
+cd front
+cp .env.example .env.local        # preencha NEXT_PUBLIC_SUPABASE_* e a URL da API
+npm install
+npm run dev                       # http://localhost:3000
+```
+
+## O que está pronto (fatia vertical) vs. contrato+stub
+
+| Área | Estado |
+|------|--------|
+| Reportar problema + mapa | **End-to-end** (front + back + geo + evento) |
+| Recomendação de candidatos | Contrato + query pgvector prontos; aguarda embeddings |
+| Notificações | Produção de eventos no outbox pronta; consumidor é de outro dono |
+| LLM de fotos | Interface/stub pronta; classificação real é de outro dono |
+
+## Pontos de integração para o time (seams)
+
+Tudo o que é IA mora em `back/app/services/` com **assinatura fixa** — preencha o corpo
+sem tocar em rotas, banco ou contratos:
+
+- **LLM de fotos** — `services/visao.py::classificar(imagem: bytes) -> ClassificacaoFoto`.
+  Hoje é um stub determinístico; troque pela chamada ao MLLM (ex.: Gemini 2.5 Flash).
+- **Recomendação** — `services/recomendacao.py::gerar_embedding(texto) -> list[float]`
+  (stub) e `top_politicos_por_similaridade(...)` (query de cosseno pronta). A dimensão
+  do embedding é `EMBEDDING_DIM` (`.env`, default 768) e **deve bater** com o modelo do
+  pipeline offline que popula `politicos.embedding`.
+- **Notificações** — `services/eventos.py`. O backend grava em `eventos_outbox`
+  (`tipo`, `payload`, `prioridade`, `processado_em IS NULL` = pendente). O consumidor lê
+  os pendentes, dispara push/email e marca como processados.
+
+## Coordenação pendente
+
+- **`EMBEDDING_DIM`** precisa ser combinado com o colega da recomendação.
+- **Random Forest** (citado na documentação inicial) foi **descartado** pelo time em
+  favor de embeddings + similaridade de cosseno + k-means. Alinhar a doc-mãe.
+- **Consumidor do outbox** (Node vs Python) é decisão de time.
