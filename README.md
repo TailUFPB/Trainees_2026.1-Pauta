@@ -8,9 +8,9 @@ onde os módulos de IA do time (LLM de fotos, recomendação, notificações) se
 
 ```
 pauta/
-├── back/      FastAPI + SQLAlchemy/GeoAlchemy2 + pgvector + Alembic
-├── front/     Next.js 16 (App Router) + Supabase + react-leaflet
-├── infra/db/  Imagem Postgres com PostGIS + pgvector (dev local)
+├── server/    FastAPI + SQLAlchemy/GeoAlchemy2 + pgvector + Alembic
+├── client/    Next.js 16 (App Router) + Supabase + react-leaflet
+├── db/        Imagem Postgres com PostGIS + pgvector (dev local)
 └── docker-compose.yml
 ```
 
@@ -34,7 +34,7 @@ docker compose up -d --build      # Postgres + PostGIS + pgvector na porta 5432
 ### 2. Backend
 
 ```bash
-cd back
+cd server
 cp .env.example .env              # ajuste SUPABASE_* para usar Auth/Storage reais
 uv sync
 uv run alembic upgrade head       # cria extensões + tabelas
@@ -50,7 +50,7 @@ uv run pytest                     # roda os testes (precisa do banco no ar)
 ### 3. Front
 
 ```bash
-cd front
+cd client
 cp .env.example .env.local        # preencha NEXT_PUBLIC_SUPABASE_* e a URL da API
 npm install
 npm run dev                       # http://localhost:3000
@@ -67,7 +67,7 @@ npm run dev                       # http://localhost:3000
 
 ## Pontos de integração para o time (seams)
 
-Tudo o que é IA mora em `back/app/services/` com **assinatura fixa** — preencha o corpo
+Tudo o que é IA mora em `server/app/services/` com **assinatura fixa** — preencha o corpo
 sem tocar em rotas, banco ou contratos:
 
 - **LLM de fotos** — `services/visao.py::classificar(imagem: bytes) -> ClassificacaoFoto`.
