@@ -25,6 +25,7 @@ __pycache__/
 back/.venv/
 back/uploads/
 .python-version
+firebase-credentials.json
 
 # production
 /build

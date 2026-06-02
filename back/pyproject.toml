@@ -17,6 +17,10 @@ dependencies = [
     "pillow>=11.0",
     "supabase>=2.10",
     "python-multipart>=0.0.12",
+    "celery[redis]>=5.3",
+    "redis>=5.0",
+    "resend>=2.0",
+    "firebase-admin>=6.0"
 ]
 
 [dependency-groups]
