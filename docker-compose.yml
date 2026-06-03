@@ -3,7 +3,7 @@
 services:
   db:
     build:
-      context: ./infra/db
+      context: ./db
     environment:
       POSTGRES_USER: pauta
       POSTGRES_PASSWORD: pauta
