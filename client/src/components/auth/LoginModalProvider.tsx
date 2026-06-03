@@ -1,5 +1,6 @@
 "use client";
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { LoginModal } from "./LoginModal";
 
 const STORAGE_KEY = "pauta-auth-redirect";
@@ -27,6 +28,7 @@ export function consumeRedirect(): string | null {
 
 export function LoginModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
+  const searchParams = useSearchParams();
 
   const open = useCallback((redirectTo?: string) => {
     if (redirectTo && typeof window !== "undefined") {
@@ -34,6 +36,13 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
     }
     setIsOpen(true);
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("login") === "1") {
+      const redirectTo = searchParams.get("redirectTo") ?? undefined;
+      open(redirectTo);
+    }
+  }, [searchParams, open]);
 
   const close = useCallback(() => setIsOpen(false), []);
 
