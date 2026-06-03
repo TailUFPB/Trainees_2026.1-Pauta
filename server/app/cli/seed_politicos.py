@@ -53,3 +53,21 @@ def seed_from_csv(path: Path, db: Session) -> dict:
     db.commit()
     total = db.scalar(select(func.count()).select_from(Politico)) or 0
     return {"importados": importados, "atualizados": atualizados, "total": total}
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 2:
+        print(f"Uso: python -m app.cli.seed_politicos <caminho/csv>", file=sys.stderr)
+        return 2
+    path = Path(argv[1])
+    if not path.is_file():
+        print(f"Arquivo não encontrado: {path}", file=sys.stderr)
+        return 1
+    with SessionLocal() as db:
+        resumo = seed_from_csv(path, db)
+    print(f"Importados: {resumo['importados']} | Atualizados: {resumo['atualizados']} | Total: {resumo['total']}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

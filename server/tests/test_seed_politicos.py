@@ -88,3 +88,16 @@ def test_nome_com_virgula_entre_aspas(tmp_path, db):
     nomes = {p.nome for p in db.scalars(select(Politico))}
     assert "Brunno Inocêncio da Nobrega Silva (Bruno, o filho de Cicinha)" in nomes
     assert "Fagner Francelino dos Santos (Boquinha, filho de Walter Cruz)" in nomes
+
+
+def test_main_imprime_resumo_e_retorna_zero(tmp_path, capsys):
+    path = _escrever_csv(tmp_path, ["JP,Ana,PT,http://x/a.png,http://x/p"])
+    from app.cli.seed_politicos import main
+
+    rc = main(["seed_politicos", str(path)])
+
+    out = capsys.readouterr().out
+    assert "Importados: 1" in out
+    assert "Atualizados: 0" in out
+    assert "Total: 1" in out
+    assert rc == 0
