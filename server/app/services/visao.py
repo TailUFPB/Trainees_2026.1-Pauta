@@ -12,18 +12,18 @@ retorno no formato `ClassificacaoFoto`.
 
 import hashlib
 
-from app.schemas.problema import ClassificacaoFoto
+from app.schemas.problema import ClassificacaoFoto, Severidade, TipoProblema
 
 # Ciclo determinístico de tipos para o stub (baseado no hash da imagem), só para
 # gerar variedade nos dados de desenvolvimento.
-_TIPOS_STUB = [
+_TIPOS_STUB: list[TipoProblema] = [
     "buraco",
     "alagamento",
     "iluminacao",
     "entulho",
     "calcada_irregular",
 ]
-_SEVERIDADES_STUB = ["baixa", "media", "alta", "critica"]
+_SEVERIDADES_STUB: list[Severidade] = ["baixa", "media", "alta", "critica"]
 
 
 def classificar(imagem: bytes) -> ClassificacaoFoto:
