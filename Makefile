@@ -86,6 +86,34 @@ doctor: ## Valida pré-requisitos do ambiente (Docker, uv, Node>=20, npm)
 	fi
 
 # ============================================================================
+# Guards (helpers internos — prefixados com _ não aparecem no help)
+# ============================================================================
+
+.PHONY: _guard-local-db
+_guard-local-db:
+	@if [ ! -f server/.env ]; then \
+		printf "\033[31m✗ ABORTADO:\033[0m server/.env não existe. Rode 'make server-env' primeiro.\n"; \
+		exit 1; \
+	fi; \
+	DB_URL=$$(grep -E '^DATABASE_URL=' server/.env | head -1 | cut -d= -f2- | sed 's/^"//;s/"$$//'); \
+	if [ -z "$$DB_URL" ]; then \
+		printf "\033[31m✗ ABORTADO:\033[0m DATABASE_URL não encontrada em server/.env.\n"; \
+		exit 1; \
+	fi; \
+	HOST=$$(printf "%s" "$$DB_URL" | sed -E 's|^[^@]+@||; s|[:/?].*$$||'); \
+	if [ "$$HOST" = "localhost" ] || [ "$$HOST" = "127.0.0.1" ]; then \
+		exit 0; \
+	fi; \
+	if [ "$${PAUTA_ALLOW_REMOTE_DB:-0}" = "1" ]; then \
+		printf "\033[33m⚠ PAUTA_ALLOW_REMOTE_DB=1\033[0m — prosseguindo contra host remoto: %s\n" "$$HOST"; \
+		exit 0; \
+	fi; \
+	printf "\033[31m✗ ABORTADO:\033[0m DATABASE_URL aponta pra \"%s\", não pra localhost.\n" "$$HOST"; \
+	printf "  Comandos destrutivos só rodam contra o banco local.\n"; \
+	printf "  Pra forçar (use com cautela), exporte PAUTA_ALLOW_REMOTE_DB=1.\n"; \
+	exit 1
+
+# ============================================================================
 # Banco (Docker Compose: Postgres + PostGIS + pgvector)
 # ============================================================================
 
@@ -99,7 +127,7 @@ db-down: ## Para o banco (preserva o volume)
 	@$(DOCKER_COMPOSE) stop $(DB_SERVICE)
 
 .PHONY: db-reset
-db-reset: ## Apaga volume do banco e sobe do zero (DESTRUTIVO)
+db-reset: _guard-local-db ## Apaga volume do banco e sobe do zero (DESTRUTIVO)
 	@$(DOCKER_COMPOSE) down -v
 	@$(MAKE) db-up
 	@echo "Banco resetado. Rode 'make server-migrate' para recriar o schema."
@@ -150,11 +178,11 @@ server-typecheck: ## Typecheck do backend (mypy)
 	@cd server && uv run mypy app/
 
 .PHONY: server-migrate
-server-migrate: ## Aplica todas as migrations do Alembic
+server-migrate: _guard-local-db ## Aplica todas as migrations do Alembic
 	@cd server && uv run alembic upgrade head
 
 .PHONY: server-migrate-down
-server-migrate-down: ## Reverte a última migration
+server-migrate-down: _guard-local-db ## Reverte a última migration
 	@cd server && uv run alembic downgrade -1
 
 .PHONY: server-migrate-status
@@ -168,7 +196,7 @@ server-migrate-create: ## Cria nova migration (uso: make server-migrate-create M
 	@cd server && uv run alembic revision --autogenerate -m "$(MSG)"
 
 .PHONY: server-seed
-server-seed: ## Popula a tabela políticos com dados de exemplo
+server-seed: _guard-local-db ## Popula a tabela políticos com dados de exemplo
 	@cd server && uv run python -m app.cli.seed_politicos
 
 # ============================================================================
