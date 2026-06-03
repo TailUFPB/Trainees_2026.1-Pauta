@@ -34,7 +34,6 @@ class ClassificacaoFoto(BaseModel):
 
 class ProblemaOut(BaseModel):
     id: UUID
-    autor_id: UUID | None
     foto_url: str | None
     lat: float
     lng: float
