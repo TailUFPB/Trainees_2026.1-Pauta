@@ -1,5 +1,5 @@
 import { getServerSession } from "@/lib/auth/getServerSession";
-import type { Problema, ProblemaPublico } from "./types";
+import type { Problema } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -34,9 +34,9 @@ export const apiServer = {
     );
   },
 
-  async problemaPorIdComoAutor(id: string): Promise<Problema | ProblemaPublico> {
+  async problemaPorIdComoAutor(id: string): Promise<Problema> {
     return handle(
-      await fetch(`${API_URL}/problemas/${id}`, {
+      await fetch(`${API_URL}/usuarios/me/problemas/${id}`, {
         headers: await serverAuthHeaders(),
         cache: "no-store",
       }),

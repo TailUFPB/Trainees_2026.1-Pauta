@@ -16,7 +16,6 @@ export type StatusProblema = "aberto" | "em_andamento" | "resolvido";
 
 export interface Problema {
   id: string;
-  autor_id: string | null;
   foto_url: string | null;
   lat: number;
   lng: number;
