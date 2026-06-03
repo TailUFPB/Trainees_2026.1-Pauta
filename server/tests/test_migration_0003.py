@@ -1,35 +1,13 @@
-"""Comportamento das FKs em users após migration 0003."""
+"""Comportamento das FKs em users após migration 0003.
+
+Nota: o teste de ON DELETE SET NULL para problemas.autor_id foi removido — a
+migration 0010 dropou a coluna autor_id e a FK; a autoria virou autor_hmac
+(HMAC one-way), portanto a anonimização não depende mais de cascade.
+"""
 
 import uuid
 
 from sqlalchemy import text
-
-
-def test_delete_user_seta_autor_null_em_problemas(db):
-    user_id = uuid.uuid4()
-    problema_id = uuid.uuid4()
-
-    db.execute(
-        text("INSERT INTO users (id, email) VALUES (:id, 'autor@x.com')"),
-        {"id": user_id},
-    )
-    db.execute(
-        text(
-            "INSERT INTO problemas (id, autor_id, localizacao) "
-            "VALUES (:pid, :aid, ST_GeomFromText('POINT(-37 -7)', 4326))"
-        ),
-        {"pid": problema_id, "aid": user_id},
-    )
-    db.commit()
-
-    db.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
-    db.commit()
-
-    autor = db.execute(
-        text("SELECT autor_id FROM problemas WHERE id = :id"), {"id": problema_id}
-    ).scalar()
-    # Problema sobrevive, autor é anonimizado.
-    assert autor is None
 
 
 def test_delete_user_remove_inscricoes_e_seguidores(db):
@@ -37,7 +15,7 @@ def test_delete_user_remove_inscricoes_e_seguidores(db):
     politico_id = uuid.uuid4()
 
     db.execute(
-        text("INSERT INTO users (id, email) VALUES (:id, 'seg@x.com')"),
+        text("INSERT INTO users (id) VALUES (:id)"),
         {"id": user_id},
     )
     db.execute(
