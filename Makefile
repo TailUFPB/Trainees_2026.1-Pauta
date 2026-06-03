@@ -45,3 +45,62 @@ db-logs: ## Tail dos logs do banco
 .PHONY: db-psql
 db-psql: ## Abre psql no banco
 	@$(DOCKER_COMPOSE) exec $(DB_SERVICE) psql -U $(DB_USER) -d $(DB_NAME)
+
+# ============================================================================
+# Server (FastAPI + uv + Alembic)
+# ============================================================================
+
+.PHONY: server-install
+server-install: ## Instala dependências do backend (uv sync com dev group)
+	@cd server && uv sync --group dev
+
+.PHONY: server-env
+server-env: ## Cria server/.env a partir do .env.example (idempotente)
+	@if [ ! -f server/.env ]; then \
+		cp server/.env.example server/.env; \
+		echo "Criado server/.env (revise as variáveis)."; \
+	else \
+		echo "server/.env já existe."; \
+	fi
+
+.PHONY: server-dev
+server-dev: ## Sobe o server FastAPI em modo dev (porta $(SERVER_PORT))
+	@cd server && uv run uvicorn app.main:app --reload --port $(SERVER_PORT)
+
+.PHONY: server-test
+server-test: ## Roda os testes do backend (precisa do banco no ar)
+	@cd server && uv run pytest
+
+.PHONY: server-lint
+server-lint: ## Lint do backend (ruff check)
+	@cd server && uv run ruff check .
+
+.PHONY: server-format
+server-format: ## Formata o backend (ruff format)
+	@cd server && uv run ruff format .
+
+.PHONY: server-typecheck
+server-typecheck: ## Typecheck do backend (mypy)
+	@cd server && uv run mypy app/
+
+.PHONY: server-migrate
+server-migrate: ## Aplica todas as migrations do Alembic
+	@cd server && uv run alembic upgrade head
+
+.PHONY: server-migrate-down
+server-migrate-down: ## Reverte a última migration
+	@cd server && uv run alembic downgrade -1
+
+.PHONY: server-migrate-status
+server-migrate-status: ## Mostra estado atual e histórico de migrations
+	@cd server && uv run alembic current
+	@cd server && uv run alembic history
+
+.PHONY: server-migrate-create
+server-migrate-create: ## Cria nova migration (uso: make server-migrate-create MSG="descrição")
+	@if [ -z "$(MSG)" ]; then echo "Uso: make server-migrate-create MSG=\"descrição\""; exit 1; fi
+	@cd server && uv run alembic revision --autogenerate -m "$(MSG)"
+
+.PHONY: server-seed
+server-seed: ## Popula a tabela políticos com dados de exemplo
+	@cd server && uv run python -m app.cli.seed_politicos
