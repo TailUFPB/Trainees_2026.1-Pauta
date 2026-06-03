@@ -28,10 +28,14 @@ pauta/
 Caminho rápido (recomendado):
 
 ```bash
+make doctor      # valida pré-requisitos (Docker, uv, Node>=20)
 make setup       # cria .envs, instala deps do server e client
 # revise server/.env e client/.env.local
 make dev         # sobe banco + migrations + server (:8000) + client (:3000)
 ```
+
+`make setup` já chama `doctor` automaticamente — rodar separado só serve
+pra diagnosticar um ambiente novo.
 
 Veja `make help` para todos os targets disponíveis. Os principais:
 
