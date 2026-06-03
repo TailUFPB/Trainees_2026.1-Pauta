@@ -34,6 +34,9 @@ server/uploads/
 .DS_Store
 *.pem
 
+# brainstorming specs (locais, não versionar)
+.specs/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
