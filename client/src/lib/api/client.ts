@@ -54,8 +54,12 @@ export const api = {
     );
   },
 
-  async listarPoliticos(): Promise<Politico[]> {
-    return handle(await fetch(`${API_URL}/politicos?limite=200`));
+  async listarPoliticos(opts?: { limite?: number; offset?: number }): Promise<Politico[]> {
+    const limite = opts?.limite ?? 50;
+    const offset = opts?.offset ?? 0;
+    return handle(
+      await fetch(`${API_URL}/politicos?limite=${limite}&offset=${offset}`),
+    );
   },
 
   async definirInteresses(texto: string): Promise<unknown> {
