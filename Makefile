@@ -70,6 +70,15 @@ doctor: ## Valida pré-requisitos do ambiente (Docker, uv, Node>=20, npm)
 	fi; \
 	if [ -f server/.env ]; then \
 		printf "  \033[32m✓\033[0m server/.env\n"; \
+		HMAC=$$(grep -E '^AUTOR_HMAC_KEY=' server/.env | tail -1 | cut -d= -f2-); \
+		if [ -z "$$HMAC" ]; then \
+			printf "  \033[31m✗\033[0m AUTOR_HMAC_KEY vazia/ausente em server/.env\n"; \
+			printf "    Gere com: cd server && uv run python -c \"import secrets; print(secrets.token_urlsafe(32))\"\n"; \
+			printf "    Depois adicione: AUTOR_HMAC_KEY=<chave-gerada>\n"; \
+			FAIL=$$((FAIL+1)); \
+		else \
+			printf "  \033[32m✓\033[0m AUTOR_HMAC_KEY definida\n"; \
+		fi; \
 	else \
 		printf "  \033[33m⚠\033[0m server/.env não existe — rode 'make server-env'\n"; \
 	fi; \
