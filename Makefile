@@ -20,6 +20,72 @@ help: ## Lista todos os targets disponíveis
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_.-]+:.*?##/ { printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 # ============================================================================
+# Doctor (preflight de pré-requisitos)
+# ============================================================================
+
+.PHONY: doctor
+doctor: ## Valida pré-requisitos do ambiente (Docker, uv, Node>=20, npm)
+	@FAIL=0; \
+	if command -v docker >/dev/null 2>&1; then \
+		printf "  \033[32m✓\033[0m docker\n"; \
+		if docker info >/dev/null 2>&1; then \
+			printf "  \033[32m✓\033[0m docker daemon rodando\n"; \
+		else \
+			printf "  \033[31m✗\033[0m docker daemon não está rodando — inicie o Docker Desktop\n"; \
+			FAIL=$$((FAIL+1)); \
+		fi; \
+	else \
+		printf "  \033[31m✗\033[0m docker não encontrado — https://docs.docker.com/get-docker/\n"; \
+		FAIL=$$((FAIL+1)); \
+	fi; \
+	if command -v uv >/dev/null 2>&1; then \
+		printf "  \033[32m✓\033[0m uv\n"; \
+	else \
+		printf "  \033[31m✗\033[0m uv não encontrado — https://docs.astral.sh/uv/getting-started/installation/\n"; \
+		FAIL=$$((FAIL+1)); \
+	fi; \
+	if command -v node >/dev/null 2>&1; then \
+		NODE_VER=$$(node --version 2>/dev/null); \
+		NODE_MAJOR=$$(printf "%s" "$$NODE_VER" | sed 's/^v//' | cut -d. -f1); \
+		if [ "$$NODE_MAJOR" -ge 20 ] 2>/dev/null; then \
+			printf "  \033[32m✓\033[0m node %s (>= 20)\n" "$$NODE_VER"; \
+		else \
+			printf "  \033[31m✗\033[0m node %s — precisa >= 20 (nvm install 20)\n" "$$NODE_VER"; \
+			FAIL=$$((FAIL+1)); \
+		fi; \
+	else \
+		printf "  \033[31m✗\033[0m node não encontrado — instale Node >= 20 (nvm install 20)\n"; \
+		FAIL=$$((FAIL+1)); \
+	fi; \
+	if command -v npm >/dev/null 2>&1; then \
+		printf "  \033[32m✓\033[0m npm\n"; \
+	else \
+		printf "  \033[31m✗\033[0m npm não encontrado — vem com Node, reinstale\n"; \
+		FAIL=$$((FAIL+1)); \
+	fi; \
+	if command -v psql >/dev/null 2>&1; then \
+		printf "  \033[32m✓\033[0m psql\n"; \
+	else \
+		printf "  \033[33m⚠\033[0m psql não encontrado — opcional (precisa só pra make db-psql)\n"; \
+	fi; \
+	if [ -f server/.env ]; then \
+		printf "  \033[32m✓\033[0m server/.env\n"; \
+	else \
+		printf "  \033[33m⚠\033[0m server/.env não existe — rode 'make server-env'\n"; \
+	fi; \
+	if [ -f client/.env.local ]; then \
+		printf "  \033[32m✓\033[0m client/.env.local\n"; \
+	else \
+		printf "  \033[33m⚠\033[0m client/.env.local não existe — rode 'make client-env'\n"; \
+	fi; \
+	if [ $$FAIL -eq 0 ]; then \
+		printf "\n\033[32mtudo certo, bora!\033[0m\n"; \
+	else \
+		printf "\n\033[31m%s pré-requisito(s) faltando\033[0m\n" "$$FAIL"; \
+		exit 1; \
+	fi
+
+# ============================================================================
 # Banco (Docker Compose: Postgres + PostGIS + pgvector)
 # ============================================================================
 
@@ -151,7 +217,7 @@ client-clean: ## Limpa cache do Next (.next) — útil após mudar envs
 env: server-env client-env ## Cria os .env locais para server e client (idempotente)
 
 .PHONY: setup
-setup: env server-install client-install ## Setup completo (envs + deps do server e client)
+setup: doctor env server-install client-install ## Setup completo (doctor + envs + deps)
 	@echo ""
 	@echo "Setup concluído. Próximos passos:"
 	@echo "  1. Revise server/.env e client/.env.local"
