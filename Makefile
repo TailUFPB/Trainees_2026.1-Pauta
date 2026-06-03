@@ -79,6 +79,13 @@ doctor: ## Valida pré-requisitos do ambiente (Docker, uv, Node>=20, npm)
 		else \
 			printf "  \033[32m✓\033[0m AUTOR_HMAC_KEY definida\n"; \
 		fi; \
+		SBURL=$$(grep -E '^SUPABASE_URL=' server/.env | tail -1 | cut -d= -f2-); \
+		if [ -z "$$SBURL" ]; then \
+			printf "  \033[31m✗\033[0m SUPABASE_URL vazia/ausente em server/.env (necessária pro JWKS do Auth)\n"; \
+			FAIL=$$((FAIL+1)); \
+		else \
+			printf "  \033[32m✓\033[0m SUPABASE_URL definida\n"; \
+		fi; \
 	else \
 		printf "  \033[33m⚠\033[0m server/.env não existe — rode 'make server-env'\n"; \
 	fi; \
