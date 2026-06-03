@@ -1,108 +1,170 @@
 "use client";
-
-import { useState } from "react";
+import { Camera, Loader2, MapPin } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Badge } from "@/components/primitives/Badge";
+import { Button } from "@/components/primitives/Button";
+import { Card } from "@/components/primitives/Card";
+import { Container } from "@/components/primitives/Container";
+import { Eyebrow } from "@/components/primitives/Eyebrow";
+import { Heading } from "@/components/primitives/Heading";
+import { Input } from "@/components/primitives/Input";
+import { Section } from "@/components/primitives/Section";
 import { api } from "@/lib/api/client";
 import type { Problema } from "@/lib/api/types";
+import { useSession } from "@/lib/hooks/useSession";
+import { useLoginModal } from "@/components/auth/LoginModalProvider";
 
 export default function ReportarPage() {
+  const { user, loading: sessionLoading } = useSession();
+  const { open } = useLoginModal();
   const [foto, setFoto] = useState<File | null>(null);
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(null);
   const [descricao, setDescricao] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [resultado, setResultado] = useState<Problema | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<Problema | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  function pegarLocalizacao() {
-    setErro(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setErro("Não foi possível obter sua localização."),
-    );
-  }
-
-  async function enviar(e: React.FormEvent) {
-    e.preventDefault();
-    setErro(null);
-    setResultado(null);
-    if (!foto || !coords) {
-      setErro("Selecione uma foto e informe a localização.");
+  const handleGeo = () => {
+    if (!("geolocation" in navigator)) {
+      setError("Geolocalização não disponível neste dispositivo.");
       return;
     }
-    setEnviando(true);
-    try {
-      const p = await api.criarProblema({ foto, ...coords, descricao });
-      setResultado(p);
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : "Falha ao enviar.");
-    } finally {
-      setEnviando(false);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setCoord({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => setError("Não foi possível obter sua localização."),
+    );
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      open("/reportar");
+      return;
     }
-  }
+    if (!foto || !coord) {
+      setError("Foto e localização são obrigatórias.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const problema = await api.criarProblema({
+        foto,
+        lat: coord.lat,
+        lng: coord.lng,
+        descricao: descricao || undefined,
+      });
+      setResult(problema);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao enviar.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div className="mx-auto max-w-md">
-      <h1 className="text-2xl font-semibold tracking-tight">Reportar problema</h1>
-      <p className="mt-1 text-sm text-zinc-600">Requer estar logado.</p>
+    <Section spacing="default">
+      <Container size="narrow">
+        <Eyebrow>Reportar problema</Eyebrow>
+        <Heading level={1} size="h1" className="mt-4">
+          Conta o que tá quebrado.
+        </Heading>
+        <p className="mt-4 text-text-muted">
+          Tire uma foto e marca sua localização. A IA classifica automaticamente.
+        </p>
 
-      <form onSubmit={enviar} className="mt-5 flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          Foto
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
-            className="rounded border border-zinc-300 p-2"
-          />
-        </label>
+        {sessionLoading ? (
+          <div className="mt-8 flex items-center gap-2 text-text-muted">
+            <Loader2 className="h-4 w-4 animate-spin" /> Verificando sessão…
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
+            <label className="flex flex-col gap-2 text-sm font-medium text-text">
+              Foto do problema
+              <div className="flex items-center gap-3">
+                <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border border-border-strong bg-surface px-4 text-sm text-text hover:border-text">
+                  <Camera className="h-4 w-4" />
+                  {foto ? foto.name : "Escolher arquivo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              </div>
+            </label>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={pegarLocalizacao}
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-          >
-            Usar minha localização
-          </button>
-          {coords && (
-            <span className="text-xs text-zinc-500">
-              {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-            </span>
-          )}
-        </div>
+            <div className="flex flex-col gap-2 text-sm font-medium text-text">
+              Localização
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleGeo}
+                  size="md"
+                >
+                  <MapPin className="h-4 w-4" />
+                  {coord ? "Atualizar" : "Usar minha localização"}
+                </Button>
+                {coord ? (
+                  <Badge tone="success">
+                    {coord.lat.toFixed(4)}, {coord.lng.toFixed(4)}
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
 
-        <label className="flex flex-col gap-1 text-sm">
-          Descrição (opcional)
-          <textarea
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-            className="rounded border border-zinc-300 p-2"
-            rows={3}
-          />
-        </label>
+            <label className="flex flex-col gap-2 text-sm font-medium text-text">
+              Descrição (opcional)
+              <Input
+                type="text"
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                placeholder="Ex: buraco fundo na esquina da padaria"
+              />
+            </label>
 
-        <button
-          type="submit"
-          disabled={enviando}
-          className="rounded bg-zinc-900 px-4 py-2 text-white disabled:opacity-50"
-        >
-          {enviando ? "Enviando…" : "Enviar"}
-        </button>
-      </form>
+            {error ? (
+              <div
+                role="alert"
+                className="rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+              >
+                {error}
+              </div>
+            ) : null}
 
-      {erro && <p className="mt-4 text-sm text-red-600">{erro}</p>}
+            <Button
+              type="submit"
+              size="lg"
+              loading={submitting}
+              disabled={!foto || !coord}
+            >
+              {user ? "Enviar reporte" : "Entrar e reportar"}
+            </Button>
+          </form>
+        )}
 
-      {resultado && (
-        <div className="mt-5 rounded border border-emerald-200 bg-emerald-50 p-4 text-sm">
-          <p className="font-medium">Problema registrado!</p>
-          <p>
-            Tipo: <strong>{resultado.tipo_problema}</strong> · Severidade:{" "}
-            <strong>{resultado.severidade}</strong> · Confiança:{" "}
-            {resultado.confianca?.toFixed(2)}
-          </p>
-          {resultado.precisa_revisao && <p>⚠️ Marcado para revisão humana (baixa confiança).</p>}
-          <p className="mt-1 text-zinc-600">{resultado.resumo_llm}</p>
-        </div>
-      )}
-    </div>
+        {result ? (
+          <Card className="mt-10">
+            <Eyebrow tone="muted">Resultado</Eyebrow>
+            <Heading level={2} size="h3" className="mt-2 capitalize">
+              {(result.tipo_problema ?? "outro").replace(/_/g, " ")}
+            </Heading>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge tone="accent">Severidade: {result.severidade ?? "—"}</Badge>
+              <Badge>
+                Confiança: {result.confianca != null ? `${(result.confianca * 100).toFixed(0)}%` : "—"}
+              </Badge>
+              <Badge>Status: {result.status}</Badge>
+            </div>
+            {result.resumo_llm ? (
+              <p className="mt-4 text-sm text-text-muted">{result.resumo_llm}</p>
+            ) : null}
+          </Card>
+        ) : null}
+      </Container>
+    </Section>
   );
 }

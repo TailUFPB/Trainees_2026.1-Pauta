@@ -1,101 +1,146 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Sparkles } from "lucide-react";
+import { Button } from "@/components/primitives/Button";
+import { Card } from "@/components/primitives/Card";
+import { Container } from "@/components/primitives/Container";
+import { Eyebrow } from "@/components/primitives/Eyebrow";
+import { Heading } from "@/components/primitives/Heading";
+import { Section } from "@/components/primitives/Section";
+import { Skeleton } from "@/components/primitives/Skeleton";
 import { api } from "@/lib/api/client";
 import type { Recomendacao } from "@/lib/api/types";
+import { useSession } from "@/lib/hooks/useSession";
+import { useLoginModal } from "@/components/auth/LoginModalProvider";
 
 export default function RecomendacoesPage() {
+  const { user, loading: sessionLoading } = useSession();
+  const { open } = useLoginModal();
   const [texto, setTexto] = useState("");
-  const [rec, setRec] = useState<Recomendacao | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
-  const [carregando, setCarregando] = useState(false);
-
-  async function carregar() {
-    setErro(null);
-    try {
-      setRec(await api.recomendacoes());
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao carregar.");
-    }
-  }
+  const [data, setData] = useState<Recomendacao | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
     api
       .recomendacoes()
-      .then((r) => setRec(r))
-      .catch((e) => setErro(e instanceof Error ? e.message : "Falha ao carregar."));
-  }, []);
+      .then(setData)
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : "Erro ao carregar."),
+      )
+      .finally(() => setLoading(false));
+  }, [user]);
 
-  async function salvarInteresses(e: React.FormEvent) {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setCarregando(true);
-    setErro(null);
+    if (!user) {
+      open("/recomendacoes");
+      return;
+    }
+    setLoading(true);
+    setError(null);
     try {
       await api.definirInteresses(texto);
-      await carregar();
+      const r = await api.recomendacoes();
+      setData(r);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Falha ao salvar interesses.");
+      setError(err instanceof Error ? err.message : "Erro.");
     } finally {
-      setCarregando(false);
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="mx-auto max-w-xl">
-      <h1 className="text-2xl font-semibold tracking-tight">Candidatos para você</h1>
-      <p className="mt-1 text-sm text-zinc-600">
-        Descreva as pautas que mais te importam. A recomendação usa similaridade entre o seu
-        perfil e o dos políticos.
-      </p>
+    <Section spacing="default">
+      <Container size="narrow">
+        <Eyebrow>Recomendação por afinidade</Eyebrow>
+        <Heading level={1} size="h1" className="mt-4">
+          Conte suas pautas. Cruzamos com a Câmara.
+        </Heading>
+        <p className="mt-4 text-text-muted">
+          Escreva os temas que importam pra você — saneamento, mobilidade,
+          mulheres, educação. A gente ranqueia os vereadores com posicionamento
+          mais próximo.
+        </p>
 
-      <form onSubmit={salvarInteresses} className="mt-5 flex flex-col gap-3">
-        <textarea
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          placeholder="ex.: saúde pública, mobilidade urbana, educação infantil…"
-          rows={3}
-          className="rounded border border-zinc-300 p-2"
-        />
-        <button
-          type="submit"
-          disabled={carregando || texto.trim().length === 0}
-          className="self-start rounded bg-zinc-900 px-4 py-2 text-white disabled:opacity-50"
-        >
-          {carregando ? "Salvando…" : "Atualizar meus interesses"}
-        </button>
-      </form>
-
-      {erro && <p className="mt-4 text-sm text-red-600">{erro}</p>}
-
-      <div className="mt-6">
-        {rec?.placeholder && (
-          <p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm">
-            Ainda não há recomendações. Defina seus interesses acima — e os perfis dos políticos
-            precisam estar carregados pelo pipeline de dados.
-          </p>
+        {sessionLoading ? null : !user ? (
+          <Card className="mt-8 flex flex-col gap-3 text-center">
+            <p className="text-text-muted">
+              Pra ver suas recomendações, entre na sua conta.
+            </p>
+            <Button onClick={() => open("/recomendacoes")}>Entrar</Button>
+          </Card>
+        ) : (
+          <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+            <label className="flex flex-col gap-2 text-sm font-medium text-text">
+              Suas pautas
+              <textarea
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                rows={5}
+                placeholder="Ex: melhor transporte público no bairro, proteção a ciclistas, mais creches na zona sul…"
+                className="w-full rounded-md border border-border bg-surface p-4 text-base text-text placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+              />
+            </label>
+            <Button
+              type="submit"
+              size="lg"
+              loading={loading}
+              disabled={!texto.trim()}
+            >
+              <Sparkles className="h-4 w-4" />
+              Gerar recomendações
+            </Button>
+          </form>
         )}
 
-        {rec && !rec.placeholder && (
-          <ul className="flex flex-col gap-2">
-            {rec.top_politicos.map((p) => (
-              <li key={p.id} className="rounded border border-zinc-200 bg-white p-4">
-                <div className="flex items-baseline justify-between">
-                  <span className="font-medium">{p.nome}</span>
-                  {p.score != null && (
-                    <span className="text-sm text-emerald-700">
-                      {Math.round(p.score * 100)}% afinidade
-                    </span>
-                  )}
+        {error ? (
+          <div
+            role="alert"
+            className="mt-6 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+          >
+            {error}
+          </div>
+        ) : null}
+
+        {loading && !data ? (
+          <div className="mt-10 space-y-3">
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+          </div>
+        ) : data && data.top_politicos.length > 0 ? (
+          <div className="mt-10 space-y-3">
+            <Eyebrow tone="muted">Top matches</Eyebrow>
+            {data.top_politicos.map((m, i) => (
+              <Card key={m.id} className="flex items-center gap-4">
+                <div className="grid h-10 w-10 place-items-center rounded-pill bg-accent/10 font-mono text-sm font-semibold text-accent">
+                  {i + 1}
                 </div>
-                <p className="text-sm text-zinc-600">
-                  {[p.cargo, p.partido, p.municipio].filter(Boolean).join(" · ")}
-                </p>
-                {p.resumo_llm && <p className="mt-1 text-sm text-zinc-600">{p.resumo_llm}</p>}
-              </li>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium text-text">{m.nome}</div>
+                  <div className="truncate text-xs text-text-muted">
+                    {m.cargo ?? "Vereador(a)"} ·{" "}
+                    {m.partido ? `${m.partido} · ` : ""}
+                    {m.municipio ?? "PB"}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-lg font-semibold text-text">
+                    {((m.score ?? 0) * 100).toFixed(0)}%
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wider text-text-muted">
+                    afinidade
+                  </div>
+                </div>
+              </Card>
             ))}
-          </ul>
-        )}
-      </div>
-    </div>
+          </div>
+        ) : null}
+      </Container>
+    </Section>
   );
 }
