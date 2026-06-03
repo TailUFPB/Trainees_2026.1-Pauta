@@ -61,5 +61,14 @@ def seguir(
     db.add(SeguidorPolitico(user_id=user.id, politico_id=politico_id))
     try:
         db.commit()
-    except IntegrityError:
-        db.rollback()  # já segue — idempotente
+    except IntegrityError as exc:
+        db.rollback()
+        constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", "") or ""
+        if constraint == "uq_seguidor_politico":
+            return  # já segue — idempotente
+        if constraint.endswith("_politico_id_fkey") or constraint.endswith("_user_id_fkey"):
+            # Race: político (ou usuário) removido entre o guard e o commit.
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, "Recurso referenciado não existe."
+            ) from exc
+        raise
