@@ -1,10 +1,8 @@
 """Smoke test: RLS está habilitado nas tabelas e view problemas_publica existe."""
 
-import pytest
 from sqlalchemy import text
 
 from app.db.session import engine
-
 
 _TABELAS_COM_RLS = [
     "users",
