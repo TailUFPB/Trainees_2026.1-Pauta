@@ -25,13 +25,30 @@ pauta/
 
 ## Subir o ambiente
 
-### 1. Banco (Docker)
+Caminho rápido (recomendado):
+
+```bash
+make setup       # cria .envs, instala deps do server e client
+# revise server/.env e client/.env.local
+make dev         # sobe banco + migrations + server (:8000) + client (:3000)
+```
+
+Veja `make help` para todos os targets disponíveis. Os principais:
+
+- `make db-up` / `make db-down` / `make db-reset` — banco local (Docker)
+- `make server-dev` / `make server-test` / `make server-migrate` — backend
+- `make client-dev` / `make client-build` / `make client-lint` — frontend
+- `make check-all` / `make ci` — lint + typecheck (+ testes/build no `ci`)
+
+### Passo-a-passo manual (alternativa)
+
+#### 1. Banco (Docker)
 
 ```bash
 docker compose up -d --build      # Postgres + PostGIS + pgvector na porta 5432
 ```
 
-### 2. Backend
+#### 2. Backend
 
 ```bash
 cd server
@@ -47,7 +64,7 @@ Docs interativas (Swagger): http://localhost:8000/docs
 uv run pytest                     # roda os testes (precisa do banco no ar)
 ```
 
-### 3. Front
+#### 3. Front
 
 ```bash
 cd client
