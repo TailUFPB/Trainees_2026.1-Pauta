@@ -20,6 +20,105 @@ help: ## Lista todos os targets disponíveis
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_.-]+:.*?##/ { printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 # ============================================================================
+# Doctor (preflight de pré-requisitos)
+# ============================================================================
+
+.PHONY: doctor
+doctor: ## Valida pré-requisitos do ambiente (Docker, uv, Node>=20, npm)
+	@FAIL=0; \
+	if command -v docker >/dev/null 2>&1; then \
+		printf "  \033[32m✓\033[0m docker\n"; \
+		if docker info >/dev/null 2>&1; then \
+			printf "  \033[32m✓\033[0m docker daemon rodando\n"; \
+		else \
+			printf "  \033[31m✗\033[0m docker daemon não está rodando — inicie o Docker Desktop\n"; \
+			FAIL=$$((FAIL+1)); \
+		fi; \
+	else \
+		printf "  \033[31m✗\033[0m docker não encontrado — https://docs.docker.com/get-docker/\n"; \
+		FAIL=$$((FAIL+1)); \
+	fi; \
+	if command -v uv >/dev/null 2>&1; then \
+		printf "  \033[32m✓\033[0m uv\n"; \
+	else \
+		printf "  \033[31m✗\033[0m uv não encontrado — https://docs.astral.sh/uv/getting-started/installation/\n"; \
+		FAIL=$$((FAIL+1)); \
+	fi; \
+	if command -v node >/dev/null 2>&1; then \
+		NODE_VER=$$(node --version 2>/dev/null); \
+		NODE_MAJOR=$$(printf "%s" "$$NODE_VER" | sed 's/^v//' | cut -d. -f1); \
+		if [ "$$NODE_MAJOR" -ge 20 ] 2>/dev/null; then \
+			printf "  \033[32m✓\033[0m node %s (>= 20)\n" "$$NODE_VER"; \
+		else \
+			printf "  \033[31m✗\033[0m node %s — precisa >= 20 (nvm install 20)\n" "$$NODE_VER"; \
+			FAIL=$$((FAIL+1)); \
+		fi; \
+	else \
+		printf "  \033[31m✗\033[0m node não encontrado — instale Node >= 20 (nvm install 20)\n"; \
+		FAIL=$$((FAIL+1)); \
+	fi; \
+	if command -v npm >/dev/null 2>&1; then \
+		printf "  \033[32m✓\033[0m npm\n"; \
+	else \
+		printf "  \033[31m✗\033[0m npm não encontrado — vem com Node, reinstale\n"; \
+		FAIL=$$((FAIL+1)); \
+	fi; \
+	if command -v psql >/dev/null 2>&1; then \
+		printf "  \033[32m✓\033[0m psql\n"; \
+	else \
+		printf "  \033[33m⚠\033[0m psql não encontrado — opcional (precisa só pra make db-psql)\n"; \
+	fi; \
+	if [ -f server/.env ]; then \
+		printf "  \033[32m✓\033[0m server/.env\n"; \
+	else \
+		printf "  \033[33m⚠\033[0m server/.env não existe — rode 'make server-env'\n"; \
+	fi; \
+	if [ -f client/.env.local ]; then \
+		printf "  \033[32m✓\033[0m client/.env.local\n"; \
+	else \
+		printf "  \033[33m⚠\033[0m client/.env.local não existe — rode 'make client-env'\n"; \
+	fi; \
+	if [ $$FAIL -eq 0 ]; then \
+		printf "\n\033[32mtudo certo, bora!\033[0m\n"; \
+	else \
+		printf "\n\033[31m%s pré-requisito(s) faltando\033[0m\n" "$$FAIL"; \
+		exit 1; \
+	fi
+
+# ============================================================================
+# Guards (helpers internos — prefixados com _ não aparecem no help)
+# ============================================================================
+
+.PHONY: _guard-local-db
+_guard-local-db:
+	@if [ -n "$${DATABASE_URL:-}" ]; then \
+		DB_URL="$$DATABASE_URL"; \
+		DB_SOURCE="env do shell"; \
+	elif [ ! -f server/.env ]; then \
+		printf "\033[31m✗ ABORTADO:\033[0m server/.env não existe e DATABASE_URL não está no env. Rode 'make server-env' primeiro.\n"; \
+		exit 1; \
+	else \
+		DB_URL=$$(grep -E '^DATABASE_URL=' server/.env | head -1 | cut -d= -f2- | sed 's/^"//;s/"$$//'); \
+		DB_SOURCE="server/.env"; \
+	fi; \
+	if [ -z "$$DB_URL" ]; then \
+		printf "\033[31m✗ ABORTADO:\033[0m DATABASE_URL não encontrada (fonte: %s).\n" "$$DB_SOURCE"; \
+		exit 1; \
+	fi; \
+	HOST=$$(printf "%s" "$$DB_URL" | sed -E 's|^[a-zA-Z0-9+]+://||; s|^[^@/]*@||; s|[:/?].*$$||'); \
+	if [ "$$HOST" = "localhost" ] || [ "$$HOST" = "127.0.0.1" ]; then \
+		exit 0; \
+	fi; \
+	if [ "$${PAUTA_ALLOW_REMOTE_DB:-0}" = "1" ]; then \
+		printf "\033[33m⚠ PAUTA_ALLOW_REMOTE_DB=1\033[0m — prosseguindo contra host remoto: %s (fonte: %s)\n" "$$HOST" "$$DB_SOURCE"; \
+		exit 0; \
+	fi; \
+	printf "\033[31m✗ ABORTADO:\033[0m DATABASE_URL (%s) aponta pra \"%s\", não pra localhost.\n" "$$DB_SOURCE" "$$HOST"; \
+	printf "  Comandos destrutivos só rodam contra o banco local.\n"; \
+	printf "  Pra forçar (use com cautela), exporte PAUTA_ALLOW_REMOTE_DB=1.\n"; \
+	exit 1
+
+# ============================================================================
 # Banco (Docker Compose: Postgres + PostGIS + pgvector)
 # ============================================================================
 
@@ -33,7 +132,7 @@ db-down: ## Para o banco (preserva o volume)
 	@$(DOCKER_COMPOSE) stop $(DB_SERVICE)
 
 .PHONY: db-reset
-db-reset: ## Apaga volume do banco e sobe do zero (DESTRUTIVO)
+db-reset: _guard-local-db ## Apaga volume do banco e sobe do zero (DESTRUTIVO)
 	@$(DOCKER_COMPOSE) down -v
 	@$(MAKE) db-up
 	@echo "Banco resetado. Rode 'make server-migrate' para recriar o schema."
@@ -84,11 +183,11 @@ server-typecheck: ## Typecheck do backend (mypy)
 	@cd server && uv run mypy app/
 
 .PHONY: server-migrate
-server-migrate: ## Aplica todas as migrations do Alembic
+server-migrate: _guard-local-db ## Aplica todas as migrations do Alembic
 	@cd server && uv run alembic upgrade head
 
 .PHONY: server-migrate-down
-server-migrate-down: ## Reverte a última migration
+server-migrate-down: _guard-local-db ## Reverte a última migration
 	@cd server && uv run alembic downgrade -1
 
 .PHONY: server-migrate-status
@@ -102,7 +201,7 @@ server-migrate-create: ## Cria nova migration (uso: make server-migrate-create M
 	@cd server && uv run alembic revision --autogenerate -m "$(MSG)"
 
 .PHONY: server-seed
-server-seed: ## Popula a tabela políticos com dados de exemplo
+server-seed: _guard-local-db ## Popula a tabela políticos com dados de exemplo
 	@cd server && uv run python -m app.cli.seed_politicos
 
 # ============================================================================
@@ -151,7 +250,7 @@ client-clean: ## Limpa cache do Next (.next) — útil após mudar envs
 env: server-env client-env ## Cria os .env locais para server e client (idempotente)
 
 .PHONY: setup
-setup: env server-install client-install ## Setup completo (envs + deps do server e client)
+setup: doctor env server-install client-install ## Setup completo (doctor + envs + deps)
 	@echo ""
 	@echo "Setup concluído. Próximos passos:"
 	@echo "  1. Revise server/.env e client/.env.local"
