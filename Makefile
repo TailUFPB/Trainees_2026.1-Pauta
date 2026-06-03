@@ -91,24 +91,29 @@ doctor: ## Valida pré-requisitos do ambiente (Docker, uv, Node>=20, npm)
 
 .PHONY: _guard-local-db
 _guard-local-db:
-	@if [ ! -f server/.env ]; then \
-		printf "\033[31m✗ ABORTADO:\033[0m server/.env não existe. Rode 'make server-env' primeiro.\n"; \
+	@if [ -n "$${DATABASE_URL:-}" ]; then \
+		DB_URL="$$DATABASE_URL"; \
+		DB_SOURCE="env do shell"; \
+	elif [ ! -f server/.env ]; then \
+		printf "\033[31m✗ ABORTADO:\033[0m server/.env não existe e DATABASE_URL não está no env. Rode 'make server-env' primeiro.\n"; \
 		exit 1; \
+	else \
+		DB_URL=$$(grep -E '^DATABASE_URL=' server/.env | head -1 | cut -d= -f2- | sed 's/^"//;s/"$$//'); \
+		DB_SOURCE="server/.env"; \
 	fi; \
-	DB_URL=$$(grep -E '^DATABASE_URL=' server/.env | head -1 | cut -d= -f2- | sed 's/^"//;s/"$$//'); \
 	if [ -z "$$DB_URL" ]; then \
-		printf "\033[31m✗ ABORTADO:\033[0m DATABASE_URL não encontrada em server/.env.\n"; \
+		printf "\033[31m✗ ABORTADO:\033[0m DATABASE_URL não encontrada (fonte: %s).\n" "$$DB_SOURCE"; \
 		exit 1; \
 	fi; \
-	HOST=$$(printf "%s" "$$DB_URL" | sed -E 's|^[^@]+@||; s|[:/?].*$$||'); \
+	HOST=$$(printf "%s" "$$DB_URL" | sed -E 's|^[a-zA-Z0-9+]+://||; s|^[^@/]*@||; s|[:/?].*$$||'); \
 	if [ "$$HOST" = "localhost" ] || [ "$$HOST" = "127.0.0.1" ]; then \
 		exit 0; \
 	fi; \
 	if [ "$${PAUTA_ALLOW_REMOTE_DB:-0}" = "1" ]; then \
-		printf "\033[33m⚠ PAUTA_ALLOW_REMOTE_DB=1\033[0m — prosseguindo contra host remoto: %s\n" "$$HOST"; \
+		printf "\033[33m⚠ PAUTA_ALLOW_REMOTE_DB=1\033[0m — prosseguindo contra host remoto: %s (fonte: %s)\n" "$$HOST" "$$DB_SOURCE"; \
 		exit 0; \
 	fi; \
-	printf "\033[31m✗ ABORTADO:\033[0m DATABASE_URL aponta pra \"%s\", não pra localhost.\n" "$$HOST"; \
+	printf "\033[31m✗ ABORTADO:\033[0m DATABASE_URL (%s) aponta pra \"%s\", não pra localhost.\n" "$$DB_SOURCE" "$$HOST"; \
 	printf "  Comandos destrutivos só rodam contra o banco local.\n"; \
 	printf "  Pra forçar (use com cautela), exporte PAUTA_ALLOW_REMOTE_DB=1.\n"; \
 	exit 1
