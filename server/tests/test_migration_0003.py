@@ -10,7 +10,7 @@ def test_delete_user_seta_autor_null_em_problemas(db):
     problema_id = uuid.uuid4()
 
     db.execute(
-        text("INSERT INTO users (id, email) VALUES (:id, 'autor@x.com')"),
+        text("INSERT INTO users (id) VALUES (:id)"),
         {"id": user_id},
     )
     db.execute(
@@ -37,7 +37,7 @@ def test_delete_user_remove_inscricoes_e_seguidores(db):
     politico_id = uuid.uuid4()
 
     db.execute(
-        text("INSERT INTO users (id, email) VALUES (:id, 'seg@x.com')"),
+        text("INSERT INTO users (id) VALUES (:id)"),
         {"id": user_id},
     )
     db.execute(

@@ -50,7 +50,7 @@ def get_current_user(
     user = db.get(User, user_id)
     if user is None:
         # Primeiro acesso: cria o registro local espelhando o auth.users do Supabase.
-        user = User(id=user_id, email=claims.get("email"))
+        user = User(id=user_id)
         db.add(user)
         db.commit()
         db.refresh(user)

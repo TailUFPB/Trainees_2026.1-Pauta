@@ -19,8 +19,6 @@ class LocalizacaoIn(BaseModel):
 
 class UsuarioOut(BaseModel):
     id: str
-    nome: str | None
-    email: str | None
     tem_interesses: bool
     tem_localizacao: bool
 
@@ -29,8 +27,6 @@ class UsuarioOut(BaseModel):
 def me(user: User = Depends(get_current_user)) -> UsuarioOut:
     return UsuarioOut(
         id=str(user.id),
-        nome=user.nome,
-        email=user.email,
         tem_interesses=user.interesses_vetor is not None,
         tem_localizacao=user.localizacao is not None,
     )
