@@ -34,6 +34,9 @@ export interface Problema {
   created_at: string;
 }
 
+/** Versão pública de um problema — sem autor_id e descricao. */
+export type ProblemaPublico = Omit<Problema, "autor_id" | "descricao">;
+
 export interface PoliticoMatch {
   id: string;
   nome: string;
