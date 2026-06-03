@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import bearer, get_current_user, get_current_user_optional
 from app.core.config import get_settings
+from app.core.hmac_autor import autor_hmac
 from app.db.session import get_db
 from app.models.inscricao import Inscricao
 from app.models.problema import Problema
@@ -96,7 +97,6 @@ def _prioridade(severidade: Severidade, confianca: float) -> Prioridade:
 def _to_out(p: Problema, lat: float, lng: float) -> ProblemaOut:
     return ProblemaOut(
         id=p.id,
-        autor_id=p.autor_id,
         foto_url=p.foto_url,
         lat=lat,
         lng=lng,
@@ -154,7 +154,7 @@ def criar_problema(
     classificacao = visao.classificar(conteudo)
 
     problema = Problema(
-        autor_id=user.id,
+        autor_hmac=autor_hmac(user.id),
         foto_url=foto_url,
         localizacao=WKTElement(f"POINT({lng} {lat})", srid=4326),
         tipo_problema=classificacao.tipo_problema,
