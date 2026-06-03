@@ -124,7 +124,7 @@ client-env: ## Cria client/.env.local a partir do .env.example (idempotente)
 
 .PHONY: client-dev
 client-dev: ## Sobe o client Next.js em modo dev (porta $(CLIENT_PORT))
-	@cd client && npm run dev
+	@cd client && PORT=$(CLIENT_PORT) npm run dev
 
 .PHONY: client-build
 client-build: ## Build de produção do client
@@ -132,7 +132,7 @@ client-build: ## Build de produção do client
 
 .PHONY: client-start
 client-start: ## Roda o build de produção (precisa de 'make client-build' antes)
-	@cd client && npm run start
+	@cd client && PORT=$(CLIENT_PORT) npm run start
 
 .PHONY: client-lint
 client-lint: ## Lint do client (ESLint)
