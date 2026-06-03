@@ -275,7 +275,7 @@ def atualizar_status(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Problema não encontrado.")
     problema, lat, lng = row
 
-    if problema.autor_id != user.id:
+    if problema.autor_hmac != autor_hmac(user.id):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             "Só o autor pode mudar o status do próprio reporte.",

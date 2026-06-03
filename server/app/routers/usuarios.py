@@ -102,7 +102,7 @@ def listar_meus_problemas(
             ST_Y(Problema.localizacao).label("lat"),
             ST_X(Problema.localizacao).label("lng"),
         )
-        .where(Problema.autor_id == user.id)
+        .where(Problema.autor_hmac == autor_hmac(user.id))
         .order_by(Problema.created_at.desc())
     )
     if status:
