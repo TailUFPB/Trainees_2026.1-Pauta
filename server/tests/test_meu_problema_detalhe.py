@@ -33,6 +33,7 @@ def test_autor_recebe_detalhe_completo(client, auth_headers):
 
 def test_nao_autor_recebe_404(client, auth_headers):
     from jose import jwt
+
     from app.core.config import get_settings
 
     pid = _criar(client, auth_headers)["id"]
