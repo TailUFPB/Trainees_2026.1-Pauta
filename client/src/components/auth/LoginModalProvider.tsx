@@ -40,6 +40,7 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (searchParams.get("login") === "1") {
       const redirectTo = searchParams.get("redirectTo") ?? undefined;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       open(redirectTo);
     }
   }, [searchParams, open]);
