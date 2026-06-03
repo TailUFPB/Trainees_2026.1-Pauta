@@ -31,17 +31,9 @@ def test_autor_recebe_detalhe_completo(client, auth_headers):
     assert body["descricao"] == "minha descrição"
 
 
-def test_nao_autor_recebe_404(client, auth_headers):
-    from jose import jwt
-
-    from app.core.config import get_settings
-
+def test_nao_autor_recebe_404(client, auth_headers, fazer_token):
     pid = _criar(client, auth_headers)["id"]
-    outro = jwt.encode(
-        {"sub": str(uuid.uuid4()), "email": "x@y.z", "aud": "authenticated"},
-        get_settings().supabase_jwt_secret,
-        algorithm="HS256",
-    )
+    outro = fazer_token(str(uuid.uuid4()))
     resp = client.get(
         f"/usuarios/me/problemas/{pid}", headers={"Authorization": f"Bearer {outro}"}
     )

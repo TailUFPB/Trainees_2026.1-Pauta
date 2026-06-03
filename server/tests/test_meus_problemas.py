@@ -28,20 +28,12 @@ def test_lista_vazia_para_novo_usuario(client, auth_headers):
     assert resp.json() == []
 
 
-def test_lista_apenas_do_autor(client, auth_headers):
+def test_lista_apenas_do_autor(client, auth_headers, fazer_token):
     # autor 1 cria 2 reportes
     _criar_problema(client, auth_headers)
     _criar_problema(client, auth_headers)
     # autor 2 cria 1 reporte
-    from jose import jwt
-
-    from app.core.config import get_settings
-
-    outro = jwt.encode(
-        {"sub": str(uuid.uuid4()), "email": "x@y.z", "aud": "authenticated"},
-        get_settings().supabase_jwt_secret,
-        algorithm="HS256",
-    )
+    outro = fazer_token(str(uuid.uuid4()))
     _criar_problema(client, {"Authorization": f"Bearer {outro}"})
 
     resp = client.get("/usuarios/me/problemas", headers=auth_headers)

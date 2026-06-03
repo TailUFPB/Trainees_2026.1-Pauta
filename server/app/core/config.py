@@ -15,8 +15,6 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_anon_key: str = ""
     supabase_service_key: str = ""
-    # Segredo usado pra validar o JWT emitido pelo Supabase Auth.
-    supabase_jwt_secret: str = "dev-insecure-secret-change-me"
     supabase_storage_bucket: str = "problemas"
 
     # Chave secreta para HMAC do autor em problemas (32+ bytes aleatórios).
