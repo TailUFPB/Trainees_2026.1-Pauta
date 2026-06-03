@@ -119,3 +119,90 @@ def test_atualizar_status_emite_evento(client, auth_headers, db):
 
     tipos = [e.tipo for e in db.scalars(select(EventoOutbox)).all()]
     assert "problema.status_alterado" in tipos
+
+
+def test_get_problemas_lista_oculta_autor_e_descricao(client, auth_headers):
+    # Cria com descrição
+    resp = client.post(
+        "/problemas",
+        headers=auth_headers,
+        files={"foto": ("p.png", _imagem_png(), "image/png")},
+        data={
+            "lat": "-7.115",
+            "lng": "-34.861",
+            "descricao": "buraco fundo na Rua João Silva, 123",
+        },
+    )
+    assert resp.status_code == 201
+
+    # GET público (lista)
+    resp = client.get("/problemas")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 1
+    assert "autor_id" not in body[0]
+    assert "descricao" not in body[0]
+    # Campos públicos seguem presentes
+    assert body[0]["tipo_problema"] is not None
+    assert body[0]["lat"] is not None
+
+
+def test_get_problema_anonimo_oculta_autor_e_descricao(client, auth_headers):
+    resp = client.post(
+        "/problemas",
+        headers=auth_headers,
+        files={"foto": ("p.png", _imagem_png(), "image/png")},
+        data={"lat": "-7.115", "lng": "-34.861", "descricao": "endereço sensível"},
+    )
+    pid = resp.json()["id"]
+
+    # GET sem auth
+    resp_pub = client.get(f"/problemas/{pid}")
+    assert resp_pub.status_code == 200
+    assert "autor_id" not in resp_pub.json()
+    assert "descricao" not in resp_pub.json()
+
+
+def test_get_problema_autor_recebe_campos_completos(client, auth_headers):
+    resp = client.post(
+        "/problemas",
+        headers=auth_headers,
+        files={"foto": ("p.png", _imagem_png(), "image/png")},
+        data={"lat": "-7.115", "lng": "-34.861", "descricao": "minha descrição"},
+    )
+    pid = resp.json()["id"]
+
+    # GET com auth do autor
+    resp_auth = client.get(f"/problemas/{pid}", headers=auth_headers)
+    assert resp_auth.status_code == 200
+    body = resp_auth.json()
+    assert body["autor_id"] is not None
+    assert body["descricao"] == "minha descrição"
+
+
+def test_get_problema_outro_usuario_oculta_autor_e_descricao(client, auth_headers):
+    import uuid
+
+    from jose import jwt
+
+    from app.core.config import get_settings
+
+    resp = client.post(
+        "/problemas",
+        headers=auth_headers,
+        files={"foto": ("p.png", _imagem_png(), "image/png")},
+        data={"lat": "-7.115", "lng": "-34.861", "descricao": "PII"},
+    )
+    pid = resp.json()["id"]
+
+    outro_token = jwt.encode(
+        {"sub": str(uuid.uuid4()), "email": "x@y.z", "aud": "authenticated"},
+        get_settings().supabase_jwt_secret,
+        algorithm="HS256",
+    )
+    resp_outro = client.get(
+        f"/problemas/{pid}", headers={"Authorization": f"Bearer {outro_token}"}
+    )
+    assert resp_outro.status_code == 200
+    assert "autor_id" not in resp_outro.json()
+    assert "descricao" not in resp_outro.json()

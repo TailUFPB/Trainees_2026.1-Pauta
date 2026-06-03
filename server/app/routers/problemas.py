@@ -10,13 +10,18 @@ from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, get_current_user_optional
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.models.inscricao import Inscricao
 from app.models.problema import Problema
 from app.models.user import User
-from app.schemas.problema import AtualizarStatusIn, ProblemaOut, Severidade
+from app.schemas.problema import (
+    AtualizarStatusIn,
+    ProblemaOut,
+    ProblemaPublicoOut,
+    Severidade,
+)
 from app.services import eventos, storage, visao
 from app.services.eventos import Prioridade
 
@@ -100,6 +105,27 @@ def _to_out(p: Problema, lat: float, lng: float) -> ProblemaOut:
     )
 
 
+def _to_publico(p: Problema, lat: float, lng: float) -> ProblemaPublicoOut:
+    """Projeção pública: oculta `autor_id` e `descricao` livre (potencial PII)."""
+    return ProblemaPublicoOut(
+        id=p.id,
+        foto_url=p.foto_url,
+        lat=lat,
+        lng=lng,
+        tipo_problema=p.tipo_problema,
+        severidade=p.severidade,
+        resumo_llm=p.resumo_llm,
+        palavras_chave=p.palavras_chave,
+        confianca=p.confianca,
+        modelo_utilizado=p.modelo_utilizado,
+        precisa_revisao=p.precisa_revisao,
+        status=p.status,
+        resolvido_por=p.resolvido_por,
+        resolvido_em=p.resolvido_em,
+        created_at=p.created_at,
+    )
+
+
 @router.post("", response_model=ProblemaOut, status_code=status.HTTP_201_CREATED)
 def criar_problema(
     foto: UploadFile = File(...),
@@ -163,7 +189,7 @@ def inscrever(
     db.commit()
 
 
-@router.get("", response_model=list[ProblemaOut])
+@router.get("", response_model=list[ProblemaPublicoOut])
 def listar_problemas(
     bbox: str | None = Query(
         None, description="minLng,minLat,maxLng,maxLat — filtro espacial para o mapa"
@@ -172,8 +198,11 @@ def listar_problemas(
     status_: str | None = Query(None, alias="status"),
     limite: int = Query(200, le=1000),
     db: Session = Depends(get_db),
-) -> list[ProblemaOut]:
-    """Lista problemas para o mapa, com filtro espacial por bounding box (índice GIST)."""
+) -> list[ProblemaPublicoOut]:
+    """Lista problemas para o mapa, com filtro espacial por bounding box (índice GIST).
+
+    Resposta pública: `autor_id` e `descricao` ficam ocultos (ver ProblemaPublicoOut).
+    """
     stmt = select(
         Problema, ST_Y(Problema.localizacao).label("lat"), ST_X(Problema.localizacao).label("lng")
     )
@@ -193,11 +222,17 @@ def listar_problemas(
         stmt = stmt.where(Problema.status == status_)
     stmt = stmt.order_by(Problema.created_at.desc()).limit(limite)
 
-    return [_to_out(p, lat, lng) for p, lat, lng in db.execute(stmt).all()]
+    return [_to_publico(p, lat, lng) for p, lat, lng in db.execute(stmt).all()]
 
 
-@router.get("/{problema_id}", response_model=ProblemaOut)
-def obter_problema(problema_id: UUID, db: Session = Depends(get_db)) -> ProblemaOut:
+@router.get("/{problema_id}", response_model=None)
+def obter_problema(
+    problema_id: UUID,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
+) -> ProblemaOut | ProblemaPublicoOut:
+    """Detalhe de um problema. O autor enxerga `autor_id` e `descricao`; demais
+    solicitantes (anônimos ou outros usuários) recebem a versão pública."""
     row = db.execute(
         select(Problema, ST_Y(Problema.localizacao), ST_X(Problema.localizacao)).where(
             Problema.id == problema_id
@@ -206,7 +241,9 @@ def obter_problema(problema_id: UUID, db: Session = Depends(get_db)) -> Problema
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Problema não encontrado.")
     p, lat, lng = row
-    return _to_out(p, lat, lng)
+    if user is not None and user.id == p.autor_id:
+        return _to_out(p, lat, lng)
+    return _to_publico(p, lat, lng)
 
 
 @router.patch("/{problema_id}/status", response_model=ProblemaOut)
