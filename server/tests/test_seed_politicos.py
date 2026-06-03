@@ -70,3 +70,21 @@ def test_idempotente_segunda_execucao_atualiza(tmp_path, db):
     assert ana.partido == "PSB"
     assert ana.foto_url == "http://x/a2.png"
     assert ana.fonte_url == "http://x/p-ana-v2"
+
+
+def test_nome_com_virgula_entre_aspas(tmp_path, db):
+    # Casos reais do CSV (linhas 94 e 96 do df_perfil.csv)
+    path = tmp_path / "x.csv"
+    path.write_text(
+        'municipio,nome,partido,foto,url_perfil\n'
+        'Santa Rita,"Brunno Inocêncio da Nobrega Silva (Bruno, o filho de Cicinha)",PT,http://x/b.png,sem_perfil\n'
+        'Santa Rita,"Fagner Francelino dos Santos (Boquinha, filho de Walter Cruz)",PSB,http://x/f.png,sem_perfil\n',
+        encoding="utf-8",
+    )
+
+    resumo = seed_from_csv(path, db)
+
+    assert resumo["importados"] == 2
+    nomes = {p.nome for p in db.scalars(select(Politico))}
+    assert "Brunno Inocêncio da Nobrega Silva (Bruno, o filho de Cicinha)" in nomes
+    assert "Fagner Francelino dos Santos (Boquinha, filho de Walter Cruz)" in nomes
