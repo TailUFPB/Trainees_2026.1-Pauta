@@ -6,7 +6,7 @@ import csv
 import sys
 from pathlib import Path
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -44,9 +44,12 @@ def seed_from_csv(path: Path, db: Session) -> dict:
                     fonte_url=stmt.excluded.fonte_url,
                     updated_at=func.now(),
                 ),
-            )
-            db.execute(stmt)
-            importados += 1  # refinado na Task 5
+            ).returning(text("(xmax = 0) AS inserido"))
+            inserido = db.execute(stmt).scalar()
+            if inserido:
+                importados += 1
+            else:
+                atualizados += 1
     db.commit()
     total = db.scalar(select(func.count()).select_from(Politico)) or 0
     return {"importados": importados, "atualizados": atualizados, "total": total}
