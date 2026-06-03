@@ -39,4 +39,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # mypy não enxerga que Pydantic-Settings popula campos do env/.env;
+    # autor_hmac_key (sem default) é exigida em runtime via validação do BaseSettings.
+    return Settings()  # type: ignore[call-arg]
