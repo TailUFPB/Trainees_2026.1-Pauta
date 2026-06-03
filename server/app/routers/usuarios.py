@@ -1,6 +1,7 @@
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from geoalchemy2.elements import WKTElement
 from geoalchemy2.functions import ST_X, ST_Y
 from pydantic import BaseModel, Field
@@ -8,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
+from app.core.hmac_autor import autor_hmac
 from app.db.session import get_db
 from app.models.problema import Problema
 from app.models.user import User
@@ -21,7 +23,6 @@ router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 def _to_problema_out(p: Problema, lat: float, lng: float) -> ProblemaOut:
     return ProblemaOut(
         id=p.id,
-        autor_id=p.autor_id,
         foto_url=p.foto_url,
         lat=lat,
         lng=lng,
@@ -108,3 +109,30 @@ def listar_meus_problemas(
         stmt = stmt.where(Problema.status.in_(status))
     stmt = stmt.limit(limite).offset(offset)
     return [_to_problema_out(p, lat, lng) for p, lat, lng in db.execute(stmt).all()]
+
+
+@router.get("/me/problemas/{problema_id}", response_model=ProblemaOut)
+def obter_meu_problema(
+    problema_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ProblemaOut:
+    """Detalhe completo de um reporte do próprio usuário autenticado.
+
+    404 se o reporte não existe OU se quem chama não é o autor (sem distinção
+    pra não vazar a existência do reporte).
+    """
+    row = db.execute(
+        select(
+            Problema,
+            ST_Y(Problema.localizacao).label("lat"),
+            ST_X(Problema.localizacao).label("lng"),
+        ).where(
+            Problema.id == problema_id,
+            Problema.autor_hmac == autor_hmac(user.id),
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporte não encontrado.")
+    p, lat, lng = row
+    return _to_problema_out(p, lat, lng)
