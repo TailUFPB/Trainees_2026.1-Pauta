@@ -49,7 +49,7 @@ def test_lista_apenas_do_autor(client, auth_headers):
     body = resp.json()
     assert len(body) == 2
     for p in body:
-        assert p["autor_id"] is not None  # versão completa do autor
+        assert "autor_id" not in p  # autor_id removido; autoria é via HMAC interno
 
 
 def test_filtro_status(client, auth_headers, db):

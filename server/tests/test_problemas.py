@@ -268,6 +268,7 @@ def test_get_problema_anonimo_oculta_autor_e_descricao(client, auth_headers):
 
 
 def test_get_problema_autor_recebe_campos_completos(client, auth_headers):
+    # /problemas/{id} virou público puro na Fatia 1.5; autor obtém detalhe completo via /usuarios/me/problemas/{id}
     resp = client.post(
         "/problemas",
         headers=auth_headers,
@@ -280,8 +281,8 @@ def test_get_problema_autor_recebe_campos_completos(client, auth_headers):
     resp_auth = client.get(f"/problemas/{pid}", headers=auth_headers)
     assert resp_auth.status_code == 200
     body = resp_auth.json()
-    assert body["autor_id"] is not None
-    assert body["descricao"] == "minha descrição"
+    assert "autor_id" not in body
+    assert "descricao" not in body
 
 
 def test_get_problema_outro_usuario_oculta_autor_e_descricao(client, auth_headers):
