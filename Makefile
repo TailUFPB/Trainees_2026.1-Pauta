@@ -104,3 +104,41 @@ server-migrate-create: ## Cria nova migration (uso: make server-migrate-create M
 .PHONY: server-seed
 server-seed: ## Popula a tabela políticos com dados de exemplo
 	@cd server && uv run python -m app.cli.seed_politicos
+
+# ============================================================================
+# Client (Next.js + npm)
+# ============================================================================
+
+.PHONY: client-install
+client-install: ## Instala dependências do frontend (npm install)
+	@cd client && npm install
+
+.PHONY: client-env
+client-env: ## Cria client/.env.local a partir do .env.example (idempotente)
+	@if [ ! -f client/.env.local ]; then \
+		cp client/.env.example client/.env.local; \
+		echo "Criado client/.env.local (preencha NEXT_PUBLIC_SUPABASE_* e a URL da API)."; \
+	else \
+		echo "client/.env.local já existe."; \
+	fi
+
+.PHONY: client-dev
+client-dev: ## Sobe o client Next.js em modo dev (porta $(CLIENT_PORT))
+	@cd client && npm run dev
+
+.PHONY: client-build
+client-build: ## Build de produção do client
+	@cd client && npm run build
+
+.PHONY: client-start
+client-start: ## Roda o build de produção (precisa de 'make client-build' antes)
+	@cd client && npm run start
+
+.PHONY: client-lint
+client-lint: ## Lint do client (ESLint)
+	@cd client && npm run lint
+
+.PHONY: client-clean
+client-clean: ## Limpa cache do Next (.next) — útil após mudar envs
+	@rm -rf client/.next
+	@echo "client/.next removido."
