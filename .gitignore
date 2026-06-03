@@ -2,7 +2,7 @@
 
 # dependencies
 /node_modules
-front/node_modules
+client/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -16,7 +16,7 @@ front/node_modules
 
 # next.js
 /.next/
-front/.next/
+client/.next/
 /out/
 
 # python / backend
@@ -34,6 +34,9 @@ scrapers/.venv/
 # misc
 .DS_Store
 *.pem
+
+# brainstorming specs (locais, não versionar)
+.specs/
 
 # debug
 npm-debug.log*
