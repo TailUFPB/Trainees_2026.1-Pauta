@@ -1,10 +1,7 @@
 """get_current_user_optional retorna None sem 401 quando não há token."""
 
-import uuid
-from uuid import UUID
 
-import pytest
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.auth import get_current_user_optional

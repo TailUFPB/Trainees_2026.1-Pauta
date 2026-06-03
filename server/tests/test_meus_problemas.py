@@ -4,9 +4,6 @@ import io
 import uuid
 
 from PIL import Image
-from sqlalchemy import text
-
-from app.db.session import engine
 
 
 def _foto_valida_bytes() -> bytes:
@@ -37,6 +34,7 @@ def test_lista_apenas_do_autor(client, auth_headers):
     _criar_problema(client, auth_headers)
     # autor 2 cria 1 reporte
     from jose import jwt
+
     from app.core.config import get_settings
 
     outro = jwt.encode(
