@@ -6,11 +6,9 @@ import { getServerUser } from "@/lib/auth/getServerSession";
 import type { Problema } from "@/lib/api/types";
 import { ReporteDetail } from "./ReporteDetail";
 
-// Página server-side: exige sessão e busca o problema pelo backend já como
-// autor (rota `/problemas/:id`). Se o usuário logado não for o autor, o
-// backend devolve `ProblemaPublico` (sem `autor_id` nem `descricao`) — nesse
-// caso devolvemos 404, porque a tela "Minha conta > Detalhe" só faz sentido
-// pro próprio autor.
+// Página server-side: exige sessão e busca o problema pelo backend via endpoint
+// dedicado do autor (`GET /usuarios/me/problemas/:id`). O backend retorna 404
+// diretamente se o usuário não for o autor ou o reporte não existir.
 export default async function DetalheReportePage({
   params,
 }: {
@@ -22,10 +20,10 @@ export default async function DetalheReportePage({
 
   let problema: Problema;
   try {
-    const resp = await apiServer.problemaPorIdComoAutor(id);
-    if (!("autor_id" in resp)) notFound();
-    problema = resp as Problema;
+    problema = await apiServer.problemaPorIdComoAutor(id);
   } catch {
+    // 404 do backend quando não é o autor (ou reporte inexistente) — tratamos como
+    // not-found pro front, sem distinção (não vazar existência do reporte).
     notFound();
   }
 
