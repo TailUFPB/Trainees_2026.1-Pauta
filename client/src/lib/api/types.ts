@@ -50,3 +50,14 @@ export interface Recomendacao {
   top_politicos: PoliticoMatch[];
   cluster_alinhado: number | null;
 }
+
+export interface Politico {
+  id: string;
+  nome: string;
+  cargo: string | null;
+  partido: string | null;
+  municipio: string | null;
+  foto_url: string | null;
+  url_perfil: string | null;
+  cluster_id: number | null;
+}
