@@ -1,7 +1,7 @@
 """outbox chronological index
 
 Revision ID: 0005
-Revises: 0002
+Revises: 0004
 Create Date: 2026-06-03
 
 ix_eventos_outbox_pendentes (prioridade, criado_em) só serve queries que
@@ -18,7 +18,7 @@ from alembic import op
 
 
 revision: str = "0005"
-down_revision: Union[str, None] = "0002"
+down_revision: Union[str, None] = "0004"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
