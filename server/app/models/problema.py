@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from geoalchemy2 import Geometry
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, func
+from sqlalchemy import Boolean, DateTime, Float, LargeBinary, String, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,7 +16,9 @@ class Problema(Base):
     __tablename__ = "problemas"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    autor_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    # HMAC-SHA256 do user.id do autor. Calculado por app.core.hmac_autor.autor_hmac.
+    # Substitui a antiga FK autor_id desde a migration 0010 — pseudonimiza autoria.
+    autor_hmac: Mapped[bytes | None] = mapped_column(LargeBinary)
 
     foto_url: Mapped[str | None] = mapped_column(String(1024))
 
