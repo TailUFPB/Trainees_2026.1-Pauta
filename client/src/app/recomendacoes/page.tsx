@@ -20,7 +20,10 @@ export default function RecomendacoesPage() {
   }
 
   useEffect(() => {
-    carregar();
+    api
+      .recomendacoes()
+      .then((r) => setRec(r))
+      .catch((e) => setErro(e instanceof Error ? e.message : "Falha ao carregar."));
   }, []);
 
   async function salvarInteresses(e: React.FormEvent) {
