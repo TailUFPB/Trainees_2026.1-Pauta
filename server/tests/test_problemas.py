@@ -106,6 +106,8 @@ def test_imagem_valida_passa_apos_verify(client, auth_headers):
 
 
 def test_atualizar_status_emite_evento(client, auth_headers, db):
+    # Mesmo autor faz transição válida (aberto -> resolvido); resolvido_por
+    # pode ser fornecido no body e tem precedência sobre o email do JWT.
     pid = _enviar_problema(client, auth_headers).json()["id"]
 
     resp = client.patch(
@@ -119,6 +121,108 @@ def test_atualizar_status_emite_evento(client, auth_headers, db):
 
     tipos = [e.tipo for e in db.scalars(select(EventoOutbox)).all()]
     assert "problema.status_alterado" in tipos
+
+
+_TRANSICOES_VALIDAS_AUTOR = {
+    ("aberto", "cancelado"),
+    ("aberto", "resolvido"),
+    ("em_andamento", "resolvido"),
+}
+
+
+def _criar(client, auth_headers):
+    return client.post(
+        "/problemas",
+        headers=auth_headers,
+        files={"foto": ("p.jpg", _imagem_png(), "image/png")},
+        data={"lat": "-7.115", "lng": "-34.861"},
+    ).json()
+
+
+def test_patch_status_nao_autor_retorna_403(client, auth_headers):
+    import uuid
+
+    from jose import jwt
+
+    from app.core.config import get_settings
+
+    pid = _criar(client, auth_headers)["id"]
+
+    outro = jwt.encode(
+        {"sub": str(uuid.uuid4()), "email": "x@y.z", "aud": "authenticated"},
+        get_settings().supabase_jwt_secret,
+        algorithm="HS256",
+    )
+    resp = client.patch(
+        f"/problemas/{pid}/status",
+        headers={"Authorization": f"Bearer {outro}"},
+        json={"status": "resolvido"},
+    )
+    assert resp.status_code == 403
+
+
+def test_patch_status_sem_auth_retorna_401(client, auth_headers):
+    pid = _criar(client, auth_headers)["id"]
+    resp = client.patch(f"/problemas/{pid}/status", json={"status": "resolvido"})
+    assert resp.status_code == 401
+
+
+def test_patch_status_autor_aberto_para_resolvido(client, auth_headers, db):
+    pid = _criar(client, auth_headers)["id"]
+    resp = client.patch(
+        f"/problemas/{pid}/status",
+        headers=auth_headers,
+        json={"status": "resolvido"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "resolvido"
+    # resolvido_por é preenchido automaticamente com o email do JWT
+    assert body["resolvido_por"] == "cidadao@teste.com"
+    assert body["resolvido_em"] is not None
+
+
+def test_patch_status_autor_aberto_para_cancelado(client, auth_headers):
+    pid = _criar(client, auth_headers)["id"]
+    resp = client.patch(
+        f"/problemas/{pid}/status", headers=auth_headers, json={"status": "cancelado"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "cancelado"
+
+
+def test_patch_status_autor_em_andamento_para_resolvido(client, auth_headers, db):
+    from sqlalchemy import update
+
+    from app.models.problema import Problema
+
+    pid = _criar(client, auth_headers)["id"]
+    # Coloca em_andamento via DB direto (simula ação operacional fora do escopo)
+    db.execute(update(Problema).where(Problema.id == pid).values(status="em_andamento"))
+    db.commit()
+
+    resp = client.patch(
+        f"/problemas/{pid}/status", headers=auth_headers, json={"status": "resolvido"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "resolvido"
+
+
+def test_patch_status_autor_transicao_invalida_retorna_422(client, auth_headers):
+    pid = _criar(client, auth_headers)["id"]
+    # aberto -> arquivado é proibido pro autor
+    resp = client.patch(
+        f"/problemas/{pid}/status", headers=auth_headers, json={"status": "arquivado"}
+    )
+    assert resp.status_code == 422
+
+    # aberto -> em_andamento também é proibido pro autor (operacional)
+    resp = client.patch(
+        f"/problemas/{pid}/status",
+        headers=auth_headers,
+        json={"status": "em_andamento"},
+    )
+    assert resp.status_code == 422
 
 
 def test_get_problemas_lista_oculta_autor_e_descricao(client, auth_headers):

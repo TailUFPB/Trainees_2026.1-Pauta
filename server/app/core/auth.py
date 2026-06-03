@@ -17,7 +17,7 @@ from app.db.session import get_db
 from app.models.user import User
 
 settings = get_settings()
-_bearer = HTTPBearer(auto_error=True)
+bearer = HTTPBearer(auto_error=True)
 _bearer_optional = HTTPBearer(auto_error=False)
 
 
@@ -38,7 +38,7 @@ def _decodificar(token: str) -> dict:
 
 
 def get_current_user(
-    credenciais: HTTPAuthorizationCredentials = Depends(_bearer),
+    credenciais: HTTPAuthorizationCredentials = Depends(bearer),
     db: Session = Depends(get_db),
 ) -> User:
     claims = _decodificar(credenciais.credentials)

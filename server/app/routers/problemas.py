@@ -4,13 +4,15 @@ from typing import BinaryIO
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.security import HTTPAuthorizationCredentials
 from geoalchemy2.elements import WKTElement
 from geoalchemy2.functions import ST_X, ST_Y, ST_MakeEnvelope
+from jose import jwt as _jose_jwt
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user, get_current_user_optional
+from app.core.auth import bearer, get_current_user, get_current_user_optional
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.models.inscricao import Inscricao
@@ -30,6 +32,14 @@ settings = get_settings()
 
 _CONTENT_TYPES_OK = {"image/jpeg", "image/png", "image/webp"}
 _CHUNK_BYTES = 64 * 1024
+
+# Transições que o autor pode realizar no próprio reporte. Demais transições
+# (em_andamento, arquivado, etc.) ficam fora desta fatia até existir RBAC.
+_TRANSICOES_AUTOR_PERMITIDAS: set[tuple[str, str]] = {
+    ("aberto", "cancelado"),
+    ("aberto", "resolvido"),
+    ("em_andamento", "resolvido"),
+}
 
 
 def _ler_upload_limitado(file: BinaryIO, max_bytes: int) -> bytes:
@@ -252,8 +262,13 @@ def atualizar_status(
     dados: AtualizarStatusIn,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    credenciais: HTTPAuthorizationCredentials = Depends(bearer),
 ) -> ProblemaOut:
-    """Atualiza o status (ex.: resolvido) e produz `problema.status_alterado`."""
+    """O autor pode cancelar ou marcar como resolvido o próprio reporte.
+
+    Demais transições (em_andamento, arquivado, etc.) são operacionais — ficam
+    fora desta fatia até que role-based access esteja implementado.
+    """
     row = db.execute(
         select(Problema, ST_Y(Problema.localizacao), ST_X(Problema.localizacao)).where(
             Problema.id == problema_id
@@ -263,9 +278,25 @@ def atualizar_status(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Problema não encontrado.")
     problema, lat, lng = row
 
+    if problema.autor_id != user.id:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Só o autor pode mudar o status do próprio reporte.",
+        )
+
+    transicao = (problema.status, dados.status)
+    if transicao not in _TRANSICOES_AUTOR_PERMITIDAS:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"Transição inválida pelo autor: {problema.status} → {dados.status}.",
+        )
+
     problema.status = dados.status
     if dados.status == "resolvido":
-        problema.resolvido_por = dados.resolvido_por
+        # Preenche resolvido_por com o email do JWT (autoautoria).
+        # O token já foi validado por get_current_user; aqui só lemos um claim.
+        email_autor = _jose_jwt.get_unverified_claims(credenciais.credentials).get("email")
+        problema.resolvido_por = dados.resolvido_por or email_autor
         problema.resolvido_em = datetime.now(UTC)
 
     eventos.OutboxPublisher(db).publish(
@@ -273,7 +304,7 @@ def atualizar_status(
         {
             "problema_id": str(problema.id),
             "status": dados.status,
-            "resolvido_por": dados.resolvido_por,
+            "resolvido_por": problema.resolvido_por,
         },
         prioridade="media",
     )
