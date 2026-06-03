@@ -21,12 +21,14 @@ class PoliticoOut(BaseModel):
     cargo: str | None
     partido: str | None
     municipio: str | None
+    foto_url: str | None
+    url_perfil: str | None
     cluster_id: int | None
 
 
 @router.get("", response_model=list[PoliticoOut])
 def listar_politicos(
-    limite: int = 100, db: Session = Depends(get_db)
+    limite: int = 200, db: Session = Depends(get_db)
 ) -> list[PoliticoOut]:
     politicos = db.scalars(select(Politico).limit(limite)).all()
     return [
@@ -36,6 +38,8 @@ def listar_politicos(
             cargo=p.cargo,
             partido=p.partido,
             municipio=p.municipio,
+            foto_url=p.foto_url,
+            url_perfil=p.fonte_url,
             cluster_id=p.cluster_id,
         )
         for p in politicos
