@@ -39,6 +39,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   ref,
 ) {
   const Comp = asChild ? Slot : "button";
+  const content = asChild ? (
+    children
+  ) : (
+    <>
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+      {children}
+    </>
+  );
   return (
     <Comp
       ref={ref}
@@ -46,8 +54,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || loading}
       {...rest}
     >
-      {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-      {children}
+      {content}
     </Comp>
   );
 });
