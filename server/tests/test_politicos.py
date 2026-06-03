@@ -43,3 +43,19 @@ def test_limite_default_acomoda_97_politicos(client, db):
 
     assert resp.status_code == 200
     assert len(resp.json()) == 150  # default 200 acomoda
+
+
+def test_seguir_idempotente_quando_ja_segue(client, db, auth_headers):
+    politico = Politico(id=uuid.uuid4(), nome="Pol A", municipio="JP")
+    db.add(politico)
+    db.commit()
+
+    primeira = client.post(f"/politicos/{politico.id}/seguir", headers=auth_headers)
+    segunda = client.post(f"/politicos/{politico.id}/seguir", headers=auth_headers)
+    assert primeira.status_code == 204, primeira.text
+    assert segunda.status_code == 204, segunda.text
+
+
+def test_seguir_politico_inexistente_retorna_404(client, auth_headers):
+    resp = client.post(f"/politicos/{uuid.uuid4()}/seguir", headers=auth_headers)
+    assert resp.status_code == 404
