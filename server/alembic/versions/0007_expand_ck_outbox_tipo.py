@@ -1,7 +1,7 @@
 """expand ck_outbox_tipo
 
 Revision ID: 0007
-Revises: 0002
+Revises: 0006
 Create Date: 2026-06-03
 
 Amplia ck_outbox_tipo (definida em 0001) para acomodar novos tipos de evento
@@ -14,7 +14,7 @@ from alembic import op
 
 
 revision: str = "0007"
-down_revision: Union[str, None] = "0002"
+down_revision: Union[str, None] = "0006"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

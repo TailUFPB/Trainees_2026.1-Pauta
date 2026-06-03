@@ -1,7 +1,7 @@
 """expand ck_problemas_status
 
 Revision ID: 0006
-Revises: 0002
+Revises: 0005
 Create Date: 2026-06-03
 
 Amplia os valores aceitos por ck_problemas_status (definida em 0001) para
@@ -15,7 +15,7 @@ from alembic import op
 
 
 revision: str = "0006"
-down_revision: Union[str, None] = "0002"
+down_revision: Union[str, None] = "0005"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
