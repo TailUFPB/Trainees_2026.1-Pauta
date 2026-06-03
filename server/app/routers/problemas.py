@@ -12,7 +12,7 @@ from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.auth import bearer, get_current_user, get_current_user_optional
+from app.core.auth import bearer, get_current_user
 from app.core.config import get_settings
 from app.core.hmac_autor import autor_hmac
 from app.db.session import get_db
@@ -235,14 +235,13 @@ def listar_problemas(
     return [_to_publico(p, lat, lng) for p, lat, lng in db.execute(stmt).all()]
 
 
-@router.get("/{problema_id}", response_model=None)
-def obter_problema(
-    problema_id: UUID,
-    db: Session = Depends(get_db),
-    user: User | None = Depends(get_current_user_optional),
-) -> ProblemaOut | ProblemaPublicoOut:
-    """Detalhe de um problema. O autor enxerga `autor_id` e `descricao`; demais
-    solicitantes (anônimos ou outros usuários) recebem a versão pública."""
+@router.get("/{problema_id}", response_model=ProblemaPublicoOut)
+def obter_problema(problema_id: UUID, db: Session = Depends(get_db)) -> ProblemaPublicoOut:
+    """Detalhe público de um problema. Sem autor_id, sem descricao.
+
+    Autores que querem o detalhe completo do próprio reporte usam
+    GET /usuarios/me/problemas/{id}.
+    """
     row = db.execute(
         select(Problema, ST_Y(Problema.localizacao), ST_X(Problema.localizacao)).where(
             Problema.id == problema_id
@@ -251,8 +250,6 @@ def obter_problema(
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Problema não encontrado.")
     p, lat, lng = row
-    if user is not None and user.id == p.autor_id:
-        return _to_out(p, lat, lng)
     return _to_publico(p, lat, lng)
 
 
