@@ -18,6 +18,7 @@ from app.models.user import User
 
 settings = get_settings()
 _bearer = HTTPBearer(auto_error=True)
+_bearer_optional = HTTPBearer(auto_error=False)
 
 
 def _decodificar(token: str) -> dict:
@@ -50,6 +51,32 @@ def get_current_user(
     if user is None:
         # Primeiro acesso: cria o registro local espelhando o auth.users do Supabase.
         user = User(id=user_id, email=claims.get("email"))
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return user
+
+
+def get_current_user_optional(
+    credenciais: HTTPAuthorizationCredentials | None = Depends(_bearer_optional),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Variante de get_current_user que retorna None silenciosamente quando
+    não há token ou ele é inválido — útil em endpoints que mudam de comportamento
+    baseado em autenticação sem rejeitar o cliente público."""
+    if credenciais is None:
+        return None
+    try:
+        claims = _decodificar(credenciais.credentials)
+    except HTTPException:
+        return None
+    sub = claims.get("sub")
+    if not sub:
+        return None
+    user_id = UUID(sub)
+    user = db.get(User, user_id)
+    if user is None:
+        user = User(id=user_id)
         db.add(user)
         db.commit()
         db.refresh(user)
