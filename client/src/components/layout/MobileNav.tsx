@@ -58,6 +58,20 @@ export function MobileNav({ email, onSignIn, onSignOut }: Props) {
             {email ? (
               <div className="flex flex-col gap-3">
                 <p className="truncate text-sm text-text-muted">{email}</p>
+                <Link
+                  href="/conta/reportes"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-3 py-3 text-base font-medium text-text hover:bg-surface"
+                >
+                  Meus Reportes
+                </Link>
+                <Link
+                  href="/recomendacoes"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-3 py-3 text-base font-medium text-text hover:bg-surface"
+                >
+                  Recomendações
+                </Link>
                 <Button
                   variant="secondary"
                   onClick={() => {
