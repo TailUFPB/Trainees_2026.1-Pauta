@@ -23,6 +23,7 @@ export function CountUp({
 
   useEffect(() => {
     if (reduced) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setValue(to);
       return;
     }

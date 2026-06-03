@@ -8,7 +8,9 @@ export function useTheme() {
   const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
+    // Sync state with theme set by no-flash inline script before hydration.
     const current = (document.documentElement.dataset.theme as Theme) || "light";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setThemeState(current);
   }, []);
 
