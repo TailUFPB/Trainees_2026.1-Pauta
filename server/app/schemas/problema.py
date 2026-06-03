@@ -15,7 +15,7 @@ TipoProblema = Literal[
     "outro",
 ]
 Severidade = Literal["baixa", "media", "alta", "critica"]
-StatusProblema = Literal["aberto", "em_andamento", "resolvido"]
+StatusProblema = Literal["aberto", "em_andamento", "resolvido", "arquivado", "cancelado"]
 
 
 class ClassificacaoFoto(BaseModel):
