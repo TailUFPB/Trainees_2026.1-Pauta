@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     supabase_jwt_secret: str = "dev-insecure-secret-change-me"
     supabase_storage_bucket: str = "problemas"
 
+    # Chave secreta para HMAC do autor em problemas (32+ bytes aleatórios).
+    # Mudar essa chave invalida o vínculo dos reportes existentes — não
+    # rotacionar sem plano. Gere com: secrets.token_urlsafe(32).
+    autor_hmac_key: str
+
     # Dimensão do embedding — DEVE bater com o modelo do colega da recomendação.
     # Gemini text-embedding-004 = 768; OpenAI text-embedding-3-small = 1536.
     embedding_dim: int = 768
@@ -34,4 +39,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # mypy não enxerga que Pydantic-Settings popula campos do env/.env;
+    # autor_hmac_key (sem default) é exigida em runtime via validação do BaseSettings.
+    return Settings()  # type: ignore[call-arg]

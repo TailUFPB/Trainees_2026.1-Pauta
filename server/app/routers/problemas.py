@@ -4,19 +4,27 @@ from typing import BinaryIO
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.security import HTTPAuthorizationCredentials
 from geoalchemy2.elements import WKTElement
 from geoalchemy2.functions import ST_X, ST_Y, ST_MakeEnvelope
+from jose import jwt as _jose_jwt
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
+from app.core.auth import bearer, get_current_user
 from app.core.config import get_settings
+from app.core.hmac_autor import autor_hmac
 from app.db.session import get_db
 from app.models.inscricao import Inscricao
 from app.models.problema import Problema
 from app.models.user import User
-from app.schemas.problema import AtualizarStatusIn, ProblemaOut, Severidade
+from app.schemas.problema import (
+    AtualizarStatusIn,
+    ProblemaOut,
+    ProblemaPublicoOut,
+    Severidade,
+)
 from app.services import eventos, storage, visao
 from app.services.eventos import Prioridade
 
@@ -25,6 +33,14 @@ settings = get_settings()
 
 _CONTENT_TYPES_OK = {"image/jpeg", "image/png", "image/webp"}
 _CHUNK_BYTES = 64 * 1024
+
+# Transições que o autor pode realizar no próprio reporte. Demais transições
+# (em_andamento, arquivado, etc.) ficam fora desta fatia até existir RBAC.
+_TRANSICOES_AUTOR_PERMITIDAS: set[tuple[str, str]] = {
+    ("aberto", "cancelado"),
+    ("aberto", "resolvido"),
+    ("em_andamento", "resolvido"),
+}
 
 
 def _ler_upload_limitado(file: BinaryIO, max_bytes: int) -> bytes:
@@ -81,7 +97,6 @@ def _prioridade(severidade: Severidade, confianca: float) -> Prioridade:
 def _to_out(p: Problema, lat: float, lng: float) -> ProblemaOut:
     return ProblemaOut(
         id=p.id,
-        autor_id=p.autor_id,
         foto_url=p.foto_url,
         lat=lat,
         lng=lng,
@@ -96,6 +111,27 @@ def _to_out(p: Problema, lat: float, lng: float) -> ProblemaOut:
         resolvido_por=p.resolvido_por,
         resolvido_em=p.resolvido_em,
         descricao=p.descricao,
+        created_at=p.created_at,
+    )
+
+
+def _to_publico(p: Problema, lat: float, lng: float) -> ProblemaPublicoOut:
+    """Projeção pública: oculta `autor_id` e `descricao` livre (potencial PII)."""
+    return ProblemaPublicoOut(
+        id=p.id,
+        foto_url=p.foto_url,
+        lat=lat,
+        lng=lng,
+        tipo_problema=p.tipo_problema,
+        severidade=p.severidade,
+        resumo_llm=p.resumo_llm,
+        palavras_chave=p.palavras_chave,
+        confianca=p.confianca,
+        modelo_utilizado=p.modelo_utilizado,
+        precisa_revisao=p.precisa_revisao,
+        status=p.status,
+        resolvido_por=p.resolvido_por,
+        resolvido_em=p.resolvido_em,
         created_at=p.created_at,
     )
 
@@ -118,7 +154,7 @@ def criar_problema(
     classificacao = visao.classificar(conteudo)
 
     problema = Problema(
-        autor_id=user.id,
+        autor_hmac=autor_hmac(user.id),
         foto_url=foto_url,
         localizacao=WKTElement(f"POINT({lng} {lat})", srid=4326),
         tipo_problema=classificacao.tipo_problema,
@@ -163,7 +199,7 @@ def inscrever(
     db.commit()
 
 
-@router.get("", response_model=list[ProblemaOut])
+@router.get("", response_model=list[ProblemaPublicoOut])
 def listar_problemas(
     bbox: str | None = Query(
         None, description="minLng,minLat,maxLng,maxLat — filtro espacial para o mapa"
@@ -172,8 +208,11 @@ def listar_problemas(
     status_: str | None = Query(None, alias="status"),
     limite: int = Query(200, le=1000),
     db: Session = Depends(get_db),
-) -> list[ProblemaOut]:
-    """Lista problemas para o mapa, com filtro espacial por bounding box (índice GIST)."""
+) -> list[ProblemaPublicoOut]:
+    """Lista problemas para o mapa, com filtro espacial por bounding box (índice GIST).
+
+    Resposta pública: `autor_id` e `descricao` ficam ocultos (ver ProblemaPublicoOut).
+    """
     stmt = select(
         Problema, ST_Y(Problema.localizacao).label("lat"), ST_X(Problema.localizacao).label("lng")
     )
@@ -193,11 +232,16 @@ def listar_problemas(
         stmt = stmt.where(Problema.status == status_)
     stmt = stmt.order_by(Problema.created_at.desc()).limit(limite)
 
-    return [_to_out(p, lat, lng) for p, lat, lng in db.execute(stmt).all()]
+    return [_to_publico(p, lat, lng) for p, lat, lng in db.execute(stmt).all()]
 
 
-@router.get("/{problema_id}", response_model=ProblemaOut)
-def obter_problema(problema_id: UUID, db: Session = Depends(get_db)) -> ProblemaOut:
+@router.get("/{problema_id}", response_model=ProblemaPublicoOut)
+def obter_problema(problema_id: UUID, db: Session = Depends(get_db)) -> ProblemaPublicoOut:
+    """Detalhe público de um problema. Sem autor_id, sem descricao.
+
+    Autores que querem o detalhe completo do próprio reporte usam
+    GET /usuarios/me/problemas/{id}.
+    """
     row = db.execute(
         select(Problema, ST_Y(Problema.localizacao), ST_X(Problema.localizacao)).where(
             Problema.id == problema_id
@@ -206,7 +250,7 @@ def obter_problema(problema_id: UUID, db: Session = Depends(get_db)) -> Problema
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Problema não encontrado.")
     p, lat, lng = row
-    return _to_out(p, lat, lng)
+    return _to_publico(p, lat, lng)
 
 
 @router.patch("/{problema_id}/status", response_model=ProblemaOut)
@@ -215,8 +259,13 @@ def atualizar_status(
     dados: AtualizarStatusIn,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    credenciais: HTTPAuthorizationCredentials = Depends(bearer),
 ) -> ProblemaOut:
-    """Atualiza o status (ex.: resolvido) e produz `problema.status_alterado`."""
+    """O autor pode cancelar ou marcar como resolvido o próprio reporte.
+
+    Demais transições (em_andamento, arquivado, etc.) são operacionais — ficam
+    fora desta fatia até que role-based access esteja implementado.
+    """
     row = db.execute(
         select(Problema, ST_Y(Problema.localizacao), ST_X(Problema.localizacao)).where(
             Problema.id == problema_id
@@ -226,9 +275,25 @@ def atualizar_status(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Problema não encontrado.")
     problema, lat, lng = row
 
+    if problema.autor_hmac != autor_hmac(user.id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Só o autor pode mudar o status do próprio reporte.",
+        )
+
+    transicao = (problema.status, dados.status)
+    if transicao not in _TRANSICOES_AUTOR_PERMITIDAS:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"Transição inválida pelo autor: {problema.status} → {dados.status}.",
+        )
+
     problema.status = dados.status
     if dados.status == "resolvido":
-        problema.resolvido_por = dados.resolvido_por
+        # Preenche resolvido_por com o email do JWT (autoautoria).
+        # O token já foi validado por get_current_user; aqui só lemos um claim.
+        email_autor = _jose_jwt.get_unverified_claims(credenciais.credentials).get("email")
+        problema.resolvido_por = dados.resolvido_por or email_autor
         problema.resolvido_em = datetime.now(UTC)
 
     eventos.OutboxPublisher(db).publish(
@@ -236,7 +301,7 @@ def atualizar_status(
         {
             "problema_id": str(problema.id),
             "status": dados.status,
-            "resolvido_por": dados.resolvido_por,
+            "resolvido_por": problema.resolvido_por,
         },
         prioridade="media",
     )

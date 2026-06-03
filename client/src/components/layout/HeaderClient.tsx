@@ -72,10 +72,18 @@ export function HeaderClient({ initialUserEmail }: Props) {
                 >
                   <DropdownMenu.Item asChild>
                     <Link
+                      href="/conta/reportes"
+                      className="block rounded-sm px-3 py-2 text-sm text-text outline-none hover:bg-bg data-[highlighted]:bg-bg"
+                    >
+                      Meus Reportes
+                    </Link>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
+                    <Link
                       href="/recomendacoes"
                       className="block rounded-sm px-3 py-2 text-sm text-text outline-none hover:bg-bg data-[highlighted]:bg-bg"
                     >
-                      Minhas recomendações
+                      Recomendações
                     </Link>
                   </DropdownMenu.Item>
                   <DropdownMenu.Separator className="my-1 h-px bg-border" />
