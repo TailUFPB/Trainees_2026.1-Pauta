@@ -1,10 +1,10 @@
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from geoalchemy2.elements import WKTElement
-from geoalchemy2.functions import ST_MakeEnvelope, ST_X, ST_Y
+from geoalchemy2.functions import ST_X, ST_Y, ST_MakeEnvelope
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,8 +15,9 @@ from app.db.session import get_db
 from app.models.inscricao import Inscricao
 from app.models.problema import Problema
 from app.models.user import User
-from app.schemas.problema import AtualizarStatusIn, ProblemaOut
+from app.schemas.problema import AtualizarStatusIn, ProblemaOut, Severidade
 from app.services import eventos, storage, visao
+from app.services.eventos import Prioridade
 
 router = APIRouter(prefix="/problemas", tags=["problemas"])
 settings = get_settings()
@@ -47,7 +48,7 @@ def _validar_imagem(conteudo: bytes, content_type: str) -> None:
         )
 
 
-def _prioridade(severidade: str, confianca: float) -> str:
+def _prioridade(severidade: Severidade, confianca: float) -> Prioridade:
     """Severidade alta/crítica com confiança suficiente vira notificação prioritária."""
     if severidade in ("alta", "critica") and confianca >= settings.confianca_minima_revisao:
         return "alta"
@@ -207,7 +208,7 @@ def atualizar_status(
     problema.status = dados.status
     if dados.status == "resolvido":
         problema.resolvido_por = dados.resolvido_por
-        problema.resolvido_em = datetime.now(timezone.utc)
+        problema.resolvido_em = datetime.now(UTC)
 
     eventos.OutboxPublisher(db).publish(
         "problema.status_alterado",
