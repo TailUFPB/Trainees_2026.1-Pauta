@@ -23,6 +23,7 @@ class Politico(Base):
     cargo: Mapped[str | None] = mapped_column(String(80))
     partido: Mapped[str | None] = mapped_column(String(40))
     municipio: Mapped[str | None] = mapped_column(String(120))
+    foto_url: Mapped[str | None] = mapped_column(String(1024))
 
     resumo_llm: Mapped[str | None] = mapped_column(String)
     palavras_chave: Mapped[list[str]] = mapped_column(
