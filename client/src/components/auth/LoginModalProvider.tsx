@@ -1,5 +1,14 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  Suspense,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { LoginModal } from "./LoginModal";
 
@@ -26,16 +35,16 @@ export function consumeRedirect(): string | null {
   return r;
 }
 
-export function LoginModalProvider({ children }: { children: ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
+/**
+ * Lê ?login=1[&redirectTo=...] da URL e abre o modal automaticamente.
+ *
+ * Isolado em componente próprio porque useSearchParams() força o Next a fazer
+ * client-side bailout — wrap em <Suspense> evita quebrar o prerender estático
+ * de páginas que herdam o RootLayout (notavelmente /_not-found).
+ */
+function QueryParamLoginOpener() {
   const searchParams = useSearchParams();
-
-  const open = useCallback((redirectTo?: string) => {
-    if (redirectTo && typeof window !== "undefined") {
-      sessionStorage.setItem(STORAGE_KEY, redirectTo);
-    }
-    setIsOpen(true);
-  }, []);
+  const { open } = useLoginModal();
 
   useEffect(() => {
     if (searchParams.get("login") === "1") {
@@ -45,12 +54,28 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
     }
   }, [searchParams, open]);
 
+  return null;
+}
+
+export function LoginModalProvider({ children }: { children: ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const open = useCallback((redirectTo?: string) => {
+    if (redirectTo && typeof window !== "undefined") {
+      sessionStorage.setItem(STORAGE_KEY, redirectTo);
+    }
+    setIsOpen(true);
+  }, []);
+
   const close = useCallback(() => setIsOpen(false), []);
 
   const value = useMemo(() => ({ open, close, isOpen }), [open, close, isOpen]);
 
   return (
     <LoginModalContext.Provider value={value}>
+      <Suspense fallback={null}>
+        <QueryParamLoginOpener />
+      </Suspense>
       {children}
       <LoginModal open={isOpen} onOpenChange={setIsOpen} />
     </LoginModalContext.Provider>
