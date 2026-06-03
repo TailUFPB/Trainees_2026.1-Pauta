@@ -1,5 +1,6 @@
 import io
 from datetime import UTC, datetime
+from typing import BinaryIO
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -23,6 +24,23 @@ router = APIRouter(prefix="/problemas", tags=["problemas"])
 settings = get_settings()
 
 _CONTENT_TYPES_OK = {"image/jpeg", "image/png", "image/webp"}
+_CHUNK_BYTES = 64 * 1024
+
+
+def _ler_upload_limitado(file: BinaryIO, max_bytes: int) -> bytes:
+    """Lê o upload em chunks abortando com 413 antes de carregar mais que max_bytes na RAM."""
+    buffer = bytearray()
+    while True:
+        chunk = file.read(_CHUNK_BYTES)
+        if not chunk:
+            break
+        buffer.extend(chunk)
+        if len(buffer) > max_bytes:
+            raise HTTPException(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                f"Imagem maior que {max_bytes // (1024 * 1024)} MB.",
+            )
+    return bytes(buffer)
 
 
 def _validar_imagem(conteudo: bytes, content_type: str) -> None:
@@ -37,11 +55,14 @@ def _validar_imagem(conteudo: bytes, content_type: str) -> None:
             f"Imagem maior que {settings.max_upload_bytes // (1024 * 1024)} MB.",
         )
     try:
-        img = Image.open(io.BytesIO(conteudo))
-        img.verify()
+        with Image.open(io.BytesIO(conteudo)) as img_verify:
+            img_verify.verify()
     except (UnidentifiedImageError, OSError) as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Imagem inválida.") from exc
-    if min(img.size) < settings.resolucao_minima_px:
+    # PIL exige reabrir o arquivo após verify() para acessar size/pixels (estado indefinido).
+    with Image.open(io.BytesIO(conteudo)) as img:
+        largura, altura = img.size
+    if min(largura, altura) < settings.resolucao_minima_px:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"Resolução mínima é {settings.resolucao_minima_px}px no menor lado.",
@@ -90,7 +111,7 @@ def criar_problema(
 ) -> ProblemaOut:
     """Reporta um problema: valida a foto, classifica via LLM (stub), grava com
     geometria PostGIS e produz o evento `problema.criado` no outbox."""
-    conteudo = foto.file.read()
+    conteudo = _ler_upload_limitado(foto.file, settings.max_upload_bytes)
     _validar_imagem(conteudo, foto.content_type or "")
 
     foto_url = storage.salvar_foto(conteudo, foto.content_type or "image/jpeg")
