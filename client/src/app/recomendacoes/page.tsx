@@ -23,6 +23,7 @@ export default function RecomendacoesPage() {
 
   useEffect(() => {
     if (!user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     api
       .recomendacoes()
