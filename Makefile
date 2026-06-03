@@ -142,3 +142,52 @@ client-lint: ## Lint do client (ESLint)
 client-clean: ## Limpa cache do Next (.next) — útil após mudar envs
 	@rm -rf client/.next
 	@echo "client/.next removido."
+
+# ============================================================================
+# Orquestração (executar tudo de uma vez)
+# ============================================================================
+
+.PHONY: env
+env: server-env client-env ## Cria os .env locais para server e client (idempotente)
+
+.PHONY: setup
+setup: env server-install client-install ## Setup completo (envs + deps do server e client)
+	@echo ""
+	@echo "Setup concluído. Próximos passos:"
+	@echo "  1. Revise server/.env e client/.env.local"
+	@echo "  2. Rode 'make dev' para subir tudo"
+
+.PHONY: lint-all
+lint-all: server-lint client-lint ## Lint em server + client
+
+.PHONY: format-all
+format-all: server-format ## Formata server (client formata via lint --fix se quiser)
+
+.PHONY: check-all
+check-all: server-lint server-typecheck client-lint ## Lint + typecheck em tudo
+
+.PHONY: dev
+dev: db-up server-migrate ## Sobe tudo: db (com migrations) + server + client em paralelo
+	@echo ""
+	@echo "Subindo server (:$(SERVER_PORT)) e client (:$(CLIENT_PORT))..."
+	@echo "Logs misturados. Ctrl+C para parar tudo."
+	@echo ""
+	@trap 'kill 0' EXIT; \
+		($(MAKE) server-dev) & \
+		($(MAKE) client-dev) & \
+		wait
+
+.PHONY: dev-stop
+dev-stop: ## Mata processos órfãos em :$(SERVER_PORT) e :$(CLIENT_PORT)
+	@lsof -ti:$(SERVER_PORT) 2>/dev/null | xargs -r kill -9 2>/dev/null; true
+	@lsof -ti:$(CLIENT_PORT) 2>/dev/null | xargs -r kill -9 2>/dev/null; true
+	@echo "Portas $(SERVER_PORT) e $(CLIENT_PORT) liberadas."
+
+.PHONY: clean
+clean: client-clean ## Limpa caches (Next, pycache, mypy_cache, ruff_cache)
+	@find server -type d -name __pycache__ -prune -exec rm -rf {} +
+	@rm -rf server/.mypy_cache server/.ruff_cache server/.pytest_cache
+	@echo "Caches removidos."
+
+.PHONY: ci
+ci: check-all server-test client-build ## Roda o que CI rodaria: lint + typecheck + test + build
