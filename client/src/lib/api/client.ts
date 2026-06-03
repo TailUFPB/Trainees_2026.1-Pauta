@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Problema, Recomendacao } from "./types";
+import type { Politico, Problema, Recomendacao } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -52,6 +52,10 @@ export const api = {
     return handle(
       await fetch(`${API_URL}/recomendacoes`, { headers: await authHeaders() }),
     );
+  },
+
+  async listarPoliticos(): Promise<Politico[]> {
+    return handle(await fetch(`${API_URL}/politicos?limite=200`));
   },
 
   async definirInteresses(texto: string): Promise<unknown> {
