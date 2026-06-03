@@ -5,13 +5,16 @@ import { Section } from "@/components/primitives/Section";
 import { Badge } from "@/components/primitives/Badge";
 import { api } from "@/lib/api/client";
 import type { Politico } from "@/lib/api/types";
-import { CandidatoCard } from "./CandidatoCard";
+
+import { CandidatosGrid } from "./CandidatosGrid";
+
+const PAGE_SIZE = 50;
 
 export default async function CandidatosPage() {
   let politicos: Politico[] = [];
   let error: string | null = null;
   try {
-    politicos = await api.listarPoliticos();
+    politicos = await api.listarPoliticos({ limite: PAGE_SIZE, offset: 0 });
   } catch (err) {
     error = err instanceof Error ? err.message : "Erro ao carregar candidatos.";
   }
@@ -26,7 +29,7 @@ export default async function CandidatosPage() {
               Vereadores monitorados
             </Heading>
           </div>
-          <Badge>{politicos.length} pessoas</Badge>
+          <Badge>{politicos.length}+ pessoas</Badge>
         </div>
 
         {error ? (
@@ -37,11 +40,7 @@ export default async function CandidatosPage() {
             {error}
           </div>
         ) : (
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {politicos.map((p) => (
-              <CandidatoCard key={p.id} politico={p} />
-            ))}
-          </div>
+          <CandidatosGrid initial={politicos} />
         )}
       </Container>
     </Section>

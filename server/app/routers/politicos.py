@@ -28,9 +28,13 @@ class PoliticoOut(BaseModel):
 
 @router.get("", response_model=list[PoliticoOut])
 def listar_politicos(
-    limite: int = 200, db: Session = Depends(get_db)
+    limite: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
 ) -> list[PoliticoOut]:
-    politicos = db.scalars(select(Politico).limit(limite)).all()
+    politicos = db.scalars(
+        select(Politico).order_by(Politico.id).offset(offset).limit(limite)
+    ).all()
     return [
         PoliticoOut(
             id=p.id,
