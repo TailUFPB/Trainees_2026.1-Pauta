@@ -79,6 +79,32 @@ def test_imagem_pequena_rejeitada(client, auth_headers):
     assert resp.status_code == 422
 
 
+def test_upload_excede_limite_rejeitado_com_413(client, auth_headers, monkeypatch):
+    """Limite de upload é respeitado via leitura em chunks; deve abortar com 413."""
+    from app.routers import problemas as router_problemas
+
+    monkeypatch.setattr(router_problemas.settings, "max_upload_bytes", 1024)
+    buf = io.BytesIO()
+    Image.new("RGB", (1024, 1024), (200, 100, 50)).save(buf, format="JPEG", quality=85)
+    payload = buf.getvalue()
+    assert len(payload) > 1024  # garante que excede o limite
+
+    resp = client.post(
+        "/problemas",
+        headers=auth_headers,
+        files={"foto": ("grande.jpg", payload, "image/jpeg")},
+        data={"lat": "-7.12", "lng": "-34.88", "descricao": "x"},
+    )
+    assert resp.status_code == 413, resp.text
+    assert "maior" in resp.json()["detail"].lower()
+
+
+def test_imagem_valida_passa_apos_verify(client, auth_headers):
+    """Regressão: img.size é lido após reabrir o BytesIO (PIL exige isso pós-verify)."""
+    resp = _enviar_problema(client, auth_headers)
+    assert resp.status_code == 201, resp.text
+
+
 def test_atualizar_status_emite_evento(client, auth_headers, db):
     pid = _enviar_problema(client, auth_headers).json()["id"]
 
