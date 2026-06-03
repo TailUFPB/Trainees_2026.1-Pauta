@@ -133,3 +133,15 @@ body {
 [data-theme="dark"] .pauta-grain::after {
   mix-blend-mode: screen;
 }
+
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes modalIn {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.96) }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1) }
+}
+@media (max-width: 768px) {
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(20px) }
+    to   { opacity: 1; transform: translateY(0) }
+  }
+}
