@@ -73,6 +73,38 @@ npm install
 npm run dev                       # http://localhost:3000
 ```
 
+## Comandos do Makefile
+
+```bash
+make                  # mostra todos os targets (mesmo que make help)
+make setup            # 1ª vez: cria .envs, instala deps do server e client
+make dev              # sobe db + migrations + server (:8000) + client (:3000)
+                      # Ctrl+C mata tudo
+```
+
+Dia a dia:
+
+```bash
+make db-up            # só o banco (docker)
+make db-psql          # abre psql conectado no banco
+make server-dev       # só o backend
+make client-dev       # só o front
+make server-test      # pytest
+make server-migrate                              # aplica migrations
+make server-migrate-create MSG="adiciona x"      # cria nova migration
+make client-lint      # ESLint
+make check-all        # lint + typecheck (server + client)
+```
+
+Se algo travar porta:
+
+```bash
+make dev-stop         # mata processos órfãos em :8000 e :3000
+make clean            # limpa caches (.next, __pycache__, mypy, ruff)
+```
+
+`make help` sempre te lembra do resto.
+
 ## O que está pronto (fatia vertical) vs. contrato+stub
 
 | Área | Estado |
