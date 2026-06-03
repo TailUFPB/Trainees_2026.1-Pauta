@@ -9,7 +9,6 @@ Dois pontos de contato com o módulo do colega (scraping/NLP/embeddings):
    dos políticos estarem populados.
 """
 
-from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session

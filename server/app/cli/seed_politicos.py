@@ -35,13 +35,13 @@ def seed_from_csv(path: Path, db: Session) -> dict:
                 foto_url=_normalizar(linha["foto"]),
                 fonte_url=_normalizar(linha["url_perfil"], "sem_perfil"),
             )
-            stmt = insert(Politico).values(**values)
-            stmt = stmt.on_conflict_do_update(
+            base = insert(Politico).values(**values)
+            stmt = base.on_conflict_do_update(
                 index_elements=["municipio", "nome"],
                 set_=dict(
-                    partido=stmt.excluded.partido,
-                    foto_url=stmt.excluded.foto_url,
-                    fonte_url=stmt.excluded.fonte_url,
+                    partido=base.excluded.partido,
+                    foto_url=base.excluded.foto_url,
+                    fonte_url=base.excluded.fonte_url,
                     updated_at=func.now(),
                 ),
             ).returning(text("(xmax = 0) AS inserido"))
@@ -57,7 +57,7 @@ def seed_from_csv(path: Path, db: Session) -> dict:
 
 def main(argv: list[str]) -> int:
     if len(argv) != 2:
-        print(f"Uso: python -m app.cli.seed_politicos <caminho/csv>", file=sys.stderr)
+        print("Uso: python -m app.cli.seed_politicos <caminho/csv>", file=sys.stderr)
         return 2
     path = Path(argv[1])
     if not path.is_file():
