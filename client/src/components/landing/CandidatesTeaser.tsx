@@ -10,6 +10,7 @@ import { Heading } from "@/components/primitives/Heading";
 import { Section } from "@/components/primitives/Section";
 import { FadeUp } from "@/components/motion/FadeUp";
 import type { Politico } from "@/lib/api/types";
+import { politicoFotoSrc } from "@/lib/politico-foto";
 
 const FAKE_MATCH = [82, 71, 64] as const;
 
@@ -76,10 +77,7 @@ export async function CandidatesTeaser() {
                   >
                     <div className="relative h-14 w-14 overflow-hidden rounded-pill border border-border">
                       <Image
-                        src={
-                          p.foto_url ||
-                          `https://ui-avatars.com/api/?name=${encodeURIComponent(p.nome)}`
-                        }
+                        src={politicoFotoSrc(p)}
                         alt={p.nome}
                         fill
                         sizes="56px"

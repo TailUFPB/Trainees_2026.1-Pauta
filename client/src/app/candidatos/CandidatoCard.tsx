@@ -4,21 +4,19 @@ import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/primitives/Badge";
 import { Card } from "@/components/primitives/Card";
 import type { Politico } from "@/lib/api/types";
+import { politicoFotoSrc } from "@/lib/politico-foto";
 
 interface Props {
   politico: Politico;
 }
 
 export function CandidatoCard({ politico: p }: Props) {
-  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    p.nome,
-  )}&background=FF6B35&color=fff`;
   const inner = (
     <Card interactive className="flex h-full flex-col gap-4">
       <div className="flex items-start gap-4">
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-pill border border-border">
           <Image
-            src={p.foto_url || fallback}
+            src={politicoFotoSrc(p)}
             alt={p.nome}
             fill
             sizes="64px"
