@@ -4,16 +4,16 @@ import { Heading } from "@/components/primitives/Heading";
 import { Section } from "@/components/primitives/Section";
 import { Badge } from "@/components/primitives/Badge";
 import { api } from "@/lib/api/client";
+import type { Politico } from "@/lib/api/types";
 import { CandidatoCard } from "./CandidatoCard";
 
 export default async function CandidatosPage() {
-  let politicos;
+  let politicos: Politico[] = [];
   let error: string | null = null;
   try {
     politicos = await api.listarPoliticos();
   } catch (err) {
     error = err instanceof Error ? err.message : "Erro ao carregar candidatos.";
-    politicos = [];
   }
 
   return (
