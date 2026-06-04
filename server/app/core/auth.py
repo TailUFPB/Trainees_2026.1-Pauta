@@ -1,12 +1,14 @@
-"""Autenticação: valida o JWT emitido pelo Supabase Auth e resolve o usuário atual.
+"""Autenticação: valida o JWT emitido pelo Supabase Auth (ES256 via JWKS) e resolve o usuário atual.
 
-O Supabase assina os access tokens com HS256 usando o JWT secret do projeto
-(Project Settings > API > JWT Secret). Validamos a assinatura e o audience, e fazemos
+O Supabase assina os access tokens com ES256 usando chave assimétrica publicada no JWKS
+do projeto (`/auth/v1/.well-known/jwks.json`). Validamos a assinatura e o audience, e fazemos
 upsert do usuário na tabela local `users` (id = `sub` do token) na primeira visita.
 """
 
+from typing import Any
 from uuid import UUID
 
+import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -20,16 +22,43 @@ settings = get_settings()
 bearer = HTTPBearer(auto_error=True)
 _bearer_optional = HTTPBearer(auto_error=False)
 
+# Cache do JWKS indexado por `kid`. Lazy: primeira request popula via HTTP.
+# Em testes, conftest injeta a chave pública local antes que qualquer fetch aconteça.
+_jwks_cache: dict[str, dict[str, Any]] = {}
+
+
+def _fetch_jwks() -> None:
+    """Busca o JWKS do Supabase e popula o cache módulo-level."""
+    url = f"{settings.supabase_url}/auth/v1/.well-known/jwks.json"
+    resp = httpx.get(url, timeout=5.0)
+    resp.raise_for_status()
+    for key in resp.json().get("keys", []):
+        kid = key.get("kid")
+        if kid:
+            _jwks_cache[kid] = key
+
+
+def _signing_key(kid: str) -> dict[str, Any]:
+    if kid not in _jwks_cache:
+        _fetch_jwks()
+    if kid not in _jwks_cache:
+        raise JWTError(f"kid {kid!r} não encontrado no JWKS")
+    return _jwks_cache[kid]
+
 
 def _decodificar(token: str) -> dict:
     try:
+        header = jwt.get_unverified_header(token)
+        kid = header.get("kid")
+        if not kid:
+            raise JWTError("token sem 'kid' no header")
         return jwt.decode(
             token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
+            _signing_key(kid),
+            algorithms=["ES256"],
             audience="authenticated",
         )
-    except JWTError as exc:
+    except (JWTError, httpx.HTTPError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token inválido: {exc}",

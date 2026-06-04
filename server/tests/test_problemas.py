@@ -1,4 +1,5 @@
 import io
+import uuid
 
 from PIL import Image
 from sqlalchemy import select
@@ -139,20 +140,9 @@ def _criar(client, auth_headers):
     ).json()
 
 
-def test_patch_status_nao_autor_retorna_403(client, auth_headers):
-    import uuid
-
-    from jose import jwt
-
-    from app.core.config import get_settings
-
+def test_patch_status_nao_autor_retorna_403(client, auth_headers, fazer_token):
     pid = _criar(client, auth_headers)["id"]
-
-    outro = jwt.encode(
-        {"sub": str(uuid.uuid4()), "email": "x@y.z", "aud": "authenticated"},
-        get_settings().supabase_jwt_secret,
-        algorithm="HS256",
-    )
+    outro = fazer_token(str(uuid.uuid4()))
     resp = client.patch(
         f"/problemas/{pid}/status",
         headers={"Authorization": f"Bearer {outro}"},
@@ -285,13 +275,7 @@ def test_get_problema_autor_recebe_campos_completos(client, auth_headers):
     assert "descricao" not in body
 
 
-def test_get_problema_outro_usuario_oculta_autor_e_descricao(client, auth_headers):
-    import uuid
-
-    from jose import jwt
-
-    from app.core.config import get_settings
-
+def test_get_problema_outro_usuario_oculta_autor_e_descricao(client, auth_headers, fazer_token):
     resp = client.post(
         "/problemas",
         headers=auth_headers,
@@ -300,11 +284,7 @@ def test_get_problema_outro_usuario_oculta_autor_e_descricao(client, auth_header
     )
     pid = resp.json()["id"]
 
-    outro_token = jwt.encode(
-        {"sub": str(uuid.uuid4()), "email": "x@y.z", "aud": "authenticated"},
-        get_settings().supabase_jwt_secret,
-        algorithm="HS256",
-    )
+    outro_token = fazer_token(str(uuid.uuid4()))
     resp_outro = client.get(
         f"/problemas/{pid}", headers={"Authorization": f"Bearer {outro_token}"}
     )
