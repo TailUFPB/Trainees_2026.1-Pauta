@@ -8,9 +8,9 @@ onde os módulos de IA do time (LLM de fotos, recomendação, notificações) se
 
 ```
 pauta/
-├── back/      FastAPI + SQLAlchemy/GeoAlchemy2 + pgvector + Alembic
-├── front/     Next.js 16 (App Router) + Supabase + react-leaflet
-├── infra/db/  Imagem Postgres com PostGIS + pgvector (dev local)
+├── server/    FastAPI + SQLAlchemy/GeoAlchemy2 + pgvector + Alembic
+├── client/    Next.js 16 (App Router) + Supabase + react-leaflet
+├── db/        Imagem Postgres com PostGIS + pgvector (dev local)
 └── docker-compose.yml
 ```
 
@@ -25,16 +25,37 @@ pauta/
 
 ## Subir o ambiente
 
-### 1. Banco (Docker)
+Caminho rápido (recomendado):
+
+```bash
+make doctor      # valida pré-requisitos (Docker, uv, Node>=20)
+make setup       # cria .envs, instala deps do server e client
+# revise server/.env e client/.env.local
+make dev         # sobe banco + migrations + server (:8000) + client (:3000)
+```
+
+`make setup` já chama `doctor` automaticamente — rodar separado só serve
+pra diagnosticar um ambiente novo.
+
+Veja `make help` para todos os targets disponíveis. Os principais:
+
+- `make db-up` / `make db-down` / `make db-reset` — banco local (Docker)
+- `make server-dev` / `make server-test` / `make server-migrate` — backend
+- `make client-dev` / `make client-build` / `make client-lint` — frontend
+- `make check-all` / `make ci` — lint + typecheck (+ testes/build no `ci`)
+
+### Passo-a-passo manual (alternativa)
+
+#### 1. Banco (Docker)
 
 ```bash
 docker compose up -d --build      # Postgres + PostGIS + pgvector na porta 5432
 ```
 
-### 2. Backend
+#### 2. Backend
 
 ```bash
-cd back
+cd server
 cp .env.example .env              # ajuste SUPABASE_* para usar Auth/Storage reais
 uv sync
 uv run alembic upgrade head       # cria extensões + tabelas
@@ -47,14 +68,46 @@ Docs interativas (Swagger): http://localhost:8000/docs
 uv run pytest                     # roda os testes (precisa do banco no ar)
 ```
 
-### 3. Front
+#### 3. Front
 
 ```bash
-cd front
+cd client
 cp .env.example .env.local        # preencha NEXT_PUBLIC_SUPABASE_* e a URL da API
 npm install
 npm run dev                       # http://localhost:3000
 ```
+
+## Comandos do Makefile
+
+```bash
+make                  # mostra todos os targets (mesmo que make help)
+make setup            # 1ª vez: cria .envs, instala deps do server e client
+make dev              # sobe db + migrations + server (:8000) + client (:3000)
+                      # Ctrl+C mata tudo
+```
+
+Dia a dia:
+
+```bash
+make db-up            # só o banco (docker)
+make db-psql          # abre psql conectado no banco
+make server-dev       # só o backend
+make client-dev       # só o front
+make server-test      # pytest
+make server-migrate                              # aplica migrations
+make server-migrate-create MSG="adiciona x"      # cria nova migration
+make client-lint      # ESLint
+make check-all        # lint + typecheck (server + client)
+```
+
+Se algo travar porta:
+
+```bash
+make dev-stop         # mata processos órfãos em :8000 e :3000
+make clean            # limpa caches (.next, __pycache__, mypy, ruff)
+```
+
+`make help` sempre te lembra do resto.
 
 ## O que está pronto (fatia vertical) vs. contrato+stub
 
@@ -67,7 +120,7 @@ npm run dev                       # http://localhost:3000
 
 ## Pontos de integração para o time (seams)
 
-Tudo o que é IA mora em `back/app/services/` com **assinatura fixa** — preencha o corpo
+Tudo o que é IA mora em `server/app/services/` com **assinatura fixa** — preencha o corpo
 sem tocar em rotas, banco ou contratos:
 
 - **LLM de fotos** — `services/visao.py::classificar(imagem: bytes) -> ClassificacaoFoto`.
