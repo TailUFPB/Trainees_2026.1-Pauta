@@ -7,7 +7,6 @@ import { CircleMarker, MapContainer, Popup, TileLayer, useMapEvents } from "reac
 import { api } from "@/lib/api/client";
 import type { Problema, Severidade } from "@/lib/api/types";
 
-// João Pessoa/PB como centro padrão.
 const CENTRO: [number, number] = [-7.115, -34.861];
 
 const COR_SEVERIDADE: Record<Severidade, string> = {
@@ -16,6 +15,16 @@ const COR_SEVERIDADE: Record<Severidade, string> = {
   alta: "#f97316",
   critica: "#ef4444",
 };
+
+const TILES = {
+  light: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+} as const;
+
+const ATTRIBUTION = {
+  light: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  dark: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CARTO',
+} as const;
 
 function Carregador({ onDados }: { onDados: (p: Problema[]) => void }) {
   const carregar = useCallback(
@@ -40,7 +49,6 @@ function Carregador({ onDados }: { onDados: (p: Problema[]) => void }) {
     moveend: () => carregar(map),
   });
 
-  // Carrega na montagem inicial.
   useEffect(() => {
     carregar(map);
   }, [map, carregar]);
@@ -48,15 +56,34 @@ function Carregador({ onDados }: { onDados: (p: Problema[]) => void }) {
   return null;
 }
 
-export default function MapaProblemas() {
+export function MapaProblemas() {
   const [problemas, setProblemas] = useState<Problema[]>([]);
+  const [theme, setTheme] = useState<"light" | "dark">(
+    typeof document !== "undefined"
+      ? (document.documentElement.dataset.theme as "light" | "dark") || "light"
+      : "light",
+  );
+
+  useEffect(() => {
+    const obs = new MutationObserver(() => {
+      setTheme(
+        (document.documentElement.dataset.theme as "light" | "dark") || "light",
+      );
+    });
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => obs.disconnect();
+  }, []);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-200">
+    <div>
       <MapContainer center={CENTRO} zoom={13} style={{ height: "70vh", width: "100%" }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          key={theme}
+          attribution={ATTRIBUTION[theme]}
+          url={TILES[theme]}
         />
         <Carregador onDados={setProblemas} />
         {problemas.map((p) => (
@@ -81,7 +108,7 @@ export default function MapaProblemas() {
           </CircleMarker>
         ))}
       </MapContainer>
-      <p className="bg-white px-3 py-2 text-xs text-zinc-500">
+      <p className="bg-surface px-3 py-2 text-xs text-text-muted">
         {problemas.length} problema(s) na área visível.
       </p>
     </div>

@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from geoalchemy2 import Geometry
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, func
+from sqlalchemy import Boolean, DateTime, Float, LargeBinary, String, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,7 +16,12 @@ class Problema(Base):
     __tablename__ = "problemas"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    autor_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    # Cifra reversível do autor (pgcrypto). NULL quando anônimo.
+    autor_cifrado: Mapped[bytes | None] = mapped_column(LargeBinary)
+    # HMAC determinístico do user.id — usado para autorização e queries "meus reportes".
+    autor_lookup: Mapped[bytes | None] = mapped_column(LargeBinary)
+    # Quando true, ninguém consegue identificar o autor.
+    anonimo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     foto_url: Mapped[str | None] = mapped_column(String(1024))
 

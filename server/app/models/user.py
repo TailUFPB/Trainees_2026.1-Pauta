@@ -14,13 +14,19 @@ EMBEDDING_DIM = get_settings().embedding_dim
 
 
 class User(Base):
-    """Usuário da plataforma. `id` espelha o `auth.users.id` do Supabase Auth."""
+    """Usuário da plataforma. `id` espelha o `auth.users.id` do Supabase Auth.
+
+    Nome e email vivem no Supabase Auth (auth.users) — fonte da verdade. O front
+    lê via getServerSession()/useSession() e nunca persiste cópia local.
+    """
 
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
-    nome: Mapped[str | None] = mapped_column(String(120))
-    email: Mapped[str | None] = mapped_column(String(255))
+
+    # Nome exibido no feed quando publicação não-anônima.
+    # Default = parte local do e-mail; usuário pode personalizar em /conta/perfil (futuro).
+    nome_publico: Mapped[str | None] = mapped_column(String(120))
 
     # Localização "de casa" usada para os geo-alertas de proximidade.
     localizacao: Mapped[object | None] = mapped_column(

@@ -1,23 +1,34 @@
 "use client";
-
 import dynamic from "next/dynamic";
+import { Container } from "@/components/primitives/Container";
+import { Eyebrow } from "@/components/primitives/Eyebrow";
+import { Heading } from "@/components/primitives/Heading";
+import { Section } from "@/components/primitives/Section";
+import { Skeleton } from "@/components/primitives/Skeleton";
 
-// Leaflet acessa `window`, então o mapa só carrega no client (ssr desligado).
-const MapaProblemas = dynamic(() => import("./MapaProblemas"), {
-  ssr: false,
-  loading: () => <p className="text-sm text-zinc-500">Carregando mapa…</p>,
-});
+const MapaProblemas = dynamic(
+  () => import("./MapaProblemas").then((m) => m.MapaProblemas),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[60vh] w-full rounded-lg" />,
+  },
+);
 
 export default function MapaPage() {
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Mapa de problemas</h1>
-        <p className="text-sm text-zinc-600">
-          Mova o mapa para carregar os problemas reportados na região visível.
+    <Section spacing="tight">
+      <Container size="wide">
+        <Eyebrow>Mapa da Paraíba</Eyebrow>
+        <Heading level={1} size="h1" className="mt-4">
+          Problemas reportados
+        </Heading>
+        <p className="mt-3 max-w-xl text-text-muted">
+          Mova o mapa para carregar problemas da região. Cores indicam severidade.
         </p>
-      </div>
-      <MapaProblemas />
-    </div>
+        <div className="mt-8 overflow-hidden rounded-lg border border-border shadow-[var(--shadow-1)]">
+          <MapaProblemas />
+        </div>
+      </Container>
+    </Section>
   );
 }
