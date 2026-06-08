@@ -18,11 +18,6 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""
     supabase_storage_bucket: str = "problemas"
 
-    # Chave secreta para HMAC do autor em problemas (32+ bytes aleatórios).
-    # Mudar essa chave invalida o vínculo dos reportes existentes — não
-    # rotacionar sem plano. Gere com: secrets.token_urlsafe(32).
-    autor_hmac_key: str
-
     # Chave simétrica do pgp_sym_encrypt para autor_cifrado (32+ bytes).
     # Será obrigatória após a Task 4 (Fatia 2); por ora aceita default vazio
     # pra não quebrar ambientes em transição. Gere com: secrets.token_urlsafe(32).
@@ -52,6 +47,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    # mypy não enxerga que Pydantic-Settings popula campos do env/.env;
-    # autor_hmac_key (sem default) é exigida em runtime via validação do BaseSettings.
-    return Settings()  # type: ignore[call-arg]
+    return Settings()
