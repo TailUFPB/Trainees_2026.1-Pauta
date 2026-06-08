@@ -1,5 +1,5 @@
 import { Container } from "@/components/primitives/Container";
-import { buscarFeed } from "@/lib/api/feed";
+import { buscarFeed } from "@/lib/api/feed.server";
 import { FeedView } from "./FeedView";
 
 // Server component: busca a primeira página do feed com SSR para evitar
