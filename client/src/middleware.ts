@@ -1,6 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
+// Rotas que dispensam autenticação: landing, fluxo de auth e estáticos.
+const ROTAS_PUBLICAS: RegExp[] = [
+  /^\/$/,                         // landing
+  /^\/auth\//,                    // /auth/callback etc.
+  /^\/_next\//,                   // estáticos do Next
+  /^\/.*\.(png|svg|jpg|jpeg|webp|ico)$/,
+];
+
+function ehPublica(pathname: string): boolean {
+  return ROTAS_PUBLICAS.some((re) => re.test(pathname));
+}
+
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request });
   const supabase = createServerClient(
@@ -20,7 +32,22 @@ export async function middleware(request: NextRequest) {
       },
     },
   );
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { pathname } = request.nextUrl;
+
+  // Usuário logado na landing → manda direto pro dashboard.
+  if (user && pathname === "/") {
+    return NextResponse.redirect(new URL("/conta", request.url));
+  }
+
+  // Rota privada sem sessão → landing com modal de login + redirect ao destino.
+  if (!user && !ehPublica(pathname)) {
+    const url = new URL("/", request.url);
+    url.searchParams.set("login", "1");
+    url.searchParams.set("redirectTo", pathname);
+    return NextResponse.redirect(url);
+  }
+
   return response;
 }
 
