@@ -76,11 +76,16 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token sem 'sub'")
 
     user_id = UUID(sub)
+    email = claims.get("email")
     user = db.get(User, user_id)
     if user is None:
         # Primeiro acesso: cria o registro local espelhando o auth.users do Supabase.
-        user = User(id=user_id)
+        user = User(id=user_id, email=email)
         db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif email and user.email != email:
+        user.email = email
         db.commit()
         db.refresh(user)
     return user
@@ -103,10 +108,15 @@ def get_current_user_optional(
     if not sub:
         return None
     user_id = UUID(sub)
+    email = claims.get("email")
     user = db.get(User, user_id)
     if user is None:
-        user = User(id=user_id)
+        user = User(id=user_id, email=email)
         db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif email and user.email != email:
+        user.email = email
         db.commit()
         db.refresh(user)
     return user

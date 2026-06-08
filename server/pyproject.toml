@@ -17,6 +17,7 @@ dependencies = [
     "pillow>=11.0",
     "supabase>=2.10",
     "python-multipart>=0.0.12",
+    "python-dotenv>=1.0",
     "celery[redis]>=5.3",
     "redis>=5.0",
     "resend>=2.0",

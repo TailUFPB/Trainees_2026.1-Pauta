@@ -1,132 +1,123 @@
-# back/app/routers/notificacoes.py
-# ─────────────────────────────────────────────────────────────────────
-# Router de notificações do Pauta
-# Segue o mesmo padrão dos outros routers do projeto:
-# politicos.py, problemas.py, recomendacoes.py, usuarios.py
-#
-# O que este router faz:
-# - Recebe eventos de outros módulos (LLM, scraping, backend)
-# - Enfileira tarefas no Celery para envio assíncrono
-# - Não envia nada diretamente — o Worker cuida disso
-# ─────────────────────────────────────────────────────────────────────
+from typing import Literal
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
+from app.db.session import get_db
 from app.services.notificacoes import (
+    service_notificar_regiao,
+    service_politico_atualizado,
     service_problema_criado,
     service_problema_resolvido,
-    service_politico_atualizado,
-    service_notificar_regiao,
 )
 
 router = APIRouter(prefix="/notificacoes", tags=["notificacoes"])
 
+Severidade = Literal["baixa", "media", "alta", "critica"]
 
-# ─────────────────────────────────────────────────────────────────────
-# SCHEMAS — definem o formato dos dados que chegam nos endpoints
-# Pydantic valida automaticamente — se faltar campo retorna erro 422
-# ─────────────────────────────────────────────────────────────────────
 
 class EventoProblemaNotificacao(BaseModel):
     problema_id: str
-    rua: str
-    tipo: str                        # buraco | alagamento | entulho | iluminacao
-    distancia_metros: int
-    token_fcm: Optional[str] = None  # token do celular do usuário
-    email: Optional[str] = None      # email do usuário
+    tipo: str
+    rua: str | None = None
+    distancia_metros: int | None = None
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lng: float | None = Field(default=None, ge=-180, le=180)
+    raio_metros: int | None = Field(default=None, gt=0)
+    severidade: Severidade | None = None
+    confianca: float | None = Field(default=None, ge=0, le=1)
+    token_fcm: str | None = None
+    email: str | None = None
+    tokens_fcm: list[str] = Field(default_factory=list)
+    emails: list[str] = Field(default_factory=list)
+
 
 class EventoProblemaResolvido(BaseModel):
     problema_id: str
-    rua: str
-    tipo: str
-    responsavel: str                 # ONG ou vereador que resolveu
-    token_fcm: Optional[str] = None
-    email: Optional[str] = None
+    rua: str | None = None
+    tipo: str | None = None
+    responsavel: str | None = None
+    token_fcm: str | None = None
+    email: str | None = None
+    tokens_fcm: list[str] = Field(default_factory=list)
+    emails: list[str] = Field(default_factory=list)
+
 
 class EventoPoliticoAtualizado(BaseModel):
     politico_id: str
     nome_politico: str
-    tipo_atualizacao: str            # novo_projeto | status_alterado | noticia_nova
+    tipo_atualizacao: str
     descricao: str
-    token_fcm: Optional[str] = None
-    email: Optional[str] = None
+    token_fcm: str | None = None
+    email: str | None = None
+    tokens_fcm: list[str] = Field(default_factory=list)
+    emails: list[str] = Field(default_factory=list)
+
 
 class EventoNotificarRegiao(BaseModel):
     problema_id: str
-    rua: str
     tipo: str
-    distancia_metros: int
-    tokens_fcm: list[str]            # lista de tokens de todos os usuários próximos
+    rua: str | None = None
+    distancia_metros: int | None = None
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lng: float | None = Field(default=None, ge=-180, le=180)
+    raio_metros: int | None = Field(default=None, gt=0)
+    tokens_fcm: list[str] = Field(default_factory=list)
+    emails: list[str] = Field(default_factory=list)
 
 
-# ─────────────────────────────────────────────────────────────────────
-# ENDPOINTS
-# ─────────────────────────────────────────────────────────────────────
-
-@router.post("/problema-criado")
-def problema_criado(evento: EventoProblemaNotificacao):
-    """
-    Notifica usuários sobre novo problema de infraestrutura.
-
-    Chamado por:
-    - Módulo de LLM quando severidade = alta ou crítica com confiança >= 0.6
-    - Backend quando problema é cadastrado manualmente
-    """
-    if not evento.token_fcm and not evento.email:
-        raise HTTPException(
-            status_code=400,
-            detail="Forneça pelo menos token_fcm ou email."
-        )
-    return service_problema_criado(evento)
+def _tem_destinatario_explicito(evento: BaseModel) -> bool:
+    return bool(
+        getattr(evento, "token_fcm", None)
+        or getattr(evento, "email", None)
+        or getattr(evento, "tokens_fcm", [])
+        or getattr(evento, "emails", [])
+    )
 
 
-@router.post("/problema-resolvido")
-def problema_resolvido(evento: EventoProblemaResolvido):
-    """
-    Notifica usuários que um problema foi resolvido.
-
-    Chamado por:
-    - Backend quando ONG ou vereador marca problema como resolvido
-    """
-    if not evento.token_fcm and not evento.email:
-        raise HTTPException(
-            status_code=400,
-            detail="Forneça pelo menos token_fcm ou email."
-        )
-    return service_problema_resolvido(evento)
+def _tem_geo(evento: BaseModel) -> bool:
+    return getattr(evento, "lat", None) is not None and getattr(evento, "lng", None) is not None
 
 
-@router.post("/politico-atualizado")
-def politico_atualizado(evento: EventoPoliticoAtualizado):
-    """
-    Notifica usuários sobre atualização de político.
-
-    Chamado por:
-    - Módulo de scraping quando detecta mudança no político
-    - Destinatários já filtrados por similaridade de cosseno pelo sistema de ML
-    """
-    if not evento.token_fcm and not evento.email:
-        raise HTTPException(
-            status_code=400,
-            detail="Forneça pelo menos token_fcm ou email."
-        )
-    return service_politico_atualizado(evento)
+def _exigir_destino_para_geoalerta(evento: BaseModel) -> None:
+    if _tem_destinatario_explicito(evento) or _tem_geo(evento):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail="Informe lat/lng para busca geografica ou destinatarios explicitos.",
+    )
 
 
-@router.post("/notificar-regiao")
-def notificar_regiao(evento: EventoNotificarRegiao):
-    """
-    Envia push para múltiplos usuários de uma região ao mesmo tempo.
+@router.post("/problema-criado", status_code=status.HTTP_202_ACCEPTED)
+def problema_criado(
+    evento: EventoProblemaNotificacao,
+    db: Session = Depends(get_db),
+) -> dict:
+    _exigir_destino_para_geoalerta(evento)
+    return service_problema_criado(db, evento)
 
-    Chamado por:
-    - Backend quando identifica todos os usuários num raio do problema
-    - Mais eficiente que chamar /problema-criado em loop
-    """
-    if not evento.tokens_fcm:
-        raise HTTPException(
-            status_code=400,
-            detail="Lista de tokens não pode ser vazia."
-        )
-    return service_notificar_regiao(evento)
+
+@router.post("/problema-resolvido", status_code=status.HTTP_202_ACCEPTED)
+def problema_resolvido(
+    evento: EventoProblemaResolvido,
+    db: Session = Depends(get_db),
+) -> dict:
+    return service_problema_resolvido(db, evento)
+
+
+@router.post("/politico-atualizado", status_code=status.HTTP_202_ACCEPTED)
+def politico_atualizado(
+    evento: EventoPoliticoAtualizado,
+    db: Session = Depends(get_db),
+) -> dict:
+    return service_politico_atualizado(db, evento)
+
+
+@router.post("/notificar-regiao", status_code=status.HTTP_202_ACCEPTED)
+def notificar_regiao(
+    evento: EventoNotificarRegiao,
+    db: Session = Depends(get_db),
+) -> dict:
+    _exigir_destino_para_geoalerta(evento)
+    return service_notificar_regiao(db, evento)

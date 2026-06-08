@@ -3,7 +3,7 @@ from uuid import UUID
 
 from geoalchemy2 import Geometry
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,13 +16,14 @@ EMBEDDING_DIM = get_settings().embedding_dim
 class User(Base):
     """Usuário da plataforma. `id` espelha o `auth.users.id` do Supabase Auth.
 
-    Nome e email vivem no Supabase Auth (auth.users) — fonte da verdade. O front
-    lê via getServerSession()/useSession() e nunca persiste cópia local.
+    O email e mantido localmente para o Notification Service encontrar
+    destinatarios sem depender da API de Auth durante o processamento da fila.
     """
 
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
+    email: Mapped[str | None] = mapped_column(String(255))
 
     # Localização "de casa" usada para os geo-alertas de proximidade.
     localizacao: Mapped[object | None] = mapped_column(

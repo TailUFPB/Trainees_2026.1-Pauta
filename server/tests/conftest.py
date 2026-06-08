@@ -1,6 +1,7 @@
 import base64
 import uuid
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 from cryptography.hazmat.primitives import serialization
