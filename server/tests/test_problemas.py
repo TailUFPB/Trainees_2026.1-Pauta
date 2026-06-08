@@ -5,6 +5,8 @@ from PIL import Image
 from sqlalchemy import select
 
 from app.models.evento import EventoOutbox
+from app.models.problema import Problema
+from app.models.user import User
 
 
 def _imagem_png(tamanho: int = 300) -> bytes:
@@ -291,3 +293,46 @@ def test_get_problema_outro_usuario_oculta_autor_e_descricao(client, auth_header
     assert resp_outro.status_code == 200
     assert "autor_id" not in resp_outro.json()
     assert "descricao" not in resp_outro.json()
+
+
+def test_criar_problema_nao_anonimo_grava_cifra_e_lookup(client, auth_headers, user_id, db):
+    # Pré-cria o User com nome_publico definido — o autoupsert do auth manteria
+    # nome_publico=None, e queremos verificar que o decifrar/join funciona.
+    db.add(User(id=user_id, nome_publico="Cidadão Teste"))
+    db.commit()
+
+    resp = client.post(
+        "/problemas",
+        headers=auth_headers,
+        files={"foto": ("foto.jpg", _imagem_png(), "image/png")},
+        data={"lat": "-7.1", "lng": "-34.9", "anonimo": "false"},
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["anonimo"] is False
+    assert body["autor_nome"] == "Cidadão Teste"
+
+    from app.core.cripto_autor import decifrar_autor, lookup_autor
+
+    row = db.execute(select(Problema).where(Problema.id == body["id"])).scalar_one()
+    assert row.autor_cifrado is not None
+    assert row.autor_lookup == lookup_autor(user_id)
+    assert decifrar_autor(db, row.autor_cifrado) == user_id
+
+
+def test_criar_problema_anonimo_nao_grava_autor(client, auth_headers, db):
+    resp = client.post(
+        "/problemas",
+        headers=auth_headers,
+        files={"foto": ("foto.jpg", _imagem_png(), "image/png")},
+        data={"lat": "-7.1", "lng": "-34.9", "anonimo": "true"},
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["anonimo"] is True
+    assert body["autor_nome"] is None
+
+    row = db.execute(select(Problema).where(Problema.id == body["id"])).scalar_one()
+    assert row.autor_cifrado is None
+    assert row.autor_lookup is None
+    assert row.anonimo is True
