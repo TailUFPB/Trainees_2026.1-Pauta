@@ -44,6 +44,7 @@ _TABELAS = [
     "eventos_outbox",
     "inscricoes",
     "seguidores_politico",
+    "publicacoes",
     "problemas",
     "politicos",
     "users",
