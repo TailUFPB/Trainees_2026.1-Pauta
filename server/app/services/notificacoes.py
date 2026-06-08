@@ -1,137 +1,61 @@
-# back/app/services/notificacoes.py
-# ─────────────────────────────────────────────────────────────────────
-# Service de notificações — a lógica de negócio
-#
-# No padrão do projeto:
-# router  → recebe a requisição HTTP e valida os dados
-# service → contém a lógica (o que fazer com os dados)
-# 
-# O service enfileira as tarefas no Celery.
-# O Worker (processo separado) processa a fila e faz o envio real.
-# ─────────────────────────────────────────────────────────────────────
-
 import logging
-from app.workers.tasks import (
-    task_push_problema_novo,
-    task_push_problema_resolvido,
-    task_push_politico_atualizado,
-    task_push_multiplos,
-    task_email_problema_novo,
-    task_email_problema_resolvido,
-    task_email_politico_atualizado,
-)
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from app.core.config import get_settings
+from app.services.eventos import OutboxPublisher, Prioridade, TipoEvento
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
-def service_problema_criado(evento) -> dict:
-    """
-    Decide quais canais usar e enfileira as tarefas.
-    Retorna imediatamente — o Worker faz o envio em background.
-    """
-    canais = []
+def _dump_evento(evento: Any) -> dict:
+    payload = evento.model_dump(exclude_none=True)
+    return {key: value for key, value in payload.items() if value != []}
 
-    if evento.token_fcm:
-        task_push_problema_novo.delay(
-            token_fcm=evento.token_fcm,
-            rua=evento.rua,
-            tipo=evento.tipo,
-            distancia_metros=evento.distancia_metros,
-            problema_id=evento.problema_id,
-        )
-        canais.append("push")
-        logger.info(f"Push enfileirado | problema: {evento.problema_id}")
 
-    if evento.email:
-        task_email_problema_novo.delay(
-            email=evento.email,
-            rua=evento.rua,
-            tipo=evento.tipo,
-            distancia_metros=evento.distancia_metros,
-        )
-        canais.append("email")
-        logger.info(f"Email enfileirado | problema: {evento.problema_id}")
+def _prioridade_problema(payload: dict) -> Prioridade:
+    severidade = payload.get("severidade")
+    confianca = payload.get("confianca")
+    if (
+        severidade in {"alta", "critica"}
+        and confianca is not None
+        and confianca >= settings.confianca_minima_revisao
+    ):
+        return "alta"
+    if payload.get("raio_metros") is not None or payload.get("tokens_fcm"):
+        return "alta"
+    return "media"
 
+
+def _publicar(db: Session, tipo: TipoEvento, payload: dict, prioridade: Prioridade) -> dict:
+    OutboxPublisher(db).publish(tipo, payload, prioridade=prioridade)
+    db.commit()
+    logger.info("Evento de notificacao registrado | tipo=%s prioridade=%s", tipo, prioridade)
     return {
-        "status": "enfileirado",
-        "problema_id": evento.problema_id,
-        "canais": canais,
+        "status": "registrado_no_outbox",
+        "tipo": tipo,
+        "prioridade": prioridade,
     }
 
 
-def service_problema_resolvido(evento) -> dict:
-    canais = []
-
-    if evento.token_fcm:
-        task_push_problema_resolvido.delay(
-            token_fcm=evento.token_fcm,
-            rua=evento.rua,
-            tipo=evento.tipo,
-            responsavel=evento.responsavel,
-            problema_id=evento.problema_id,
-        )
-        canais.append("push")
-
-    if evento.email:
-        task_email_problema_resolvido.delay(
-            email=evento.email,
-            rua=evento.rua,
-            tipo=evento.tipo,
-            responsavel=evento.responsavel,
-        )
-        canais.append("email")
-
-    return {
-        "status": "enfileirado",
-        "problema_id": evento.problema_id,
-        "canais": canais,
-    }
+def service_problema_criado(db: Session, evento) -> dict:
+    payload = _dump_evento(evento)
+    return _publicar(db, "problema.criado", payload, _prioridade_problema(payload))
 
 
-def service_politico_atualizado(evento) -> dict:
-    canais = []
-
-    if evento.token_fcm:
-        task_push_politico_atualizado.delay(
-            token_fcm=evento.token_fcm,
-            nome_politico=evento.nome_politico,
-            tipo_atualizacao=evento.tipo_atualizacao,
-            politico_id=evento.politico_id,
-        )
-        canais.append("push")
-
-    if evento.email:
-        task_email_politico_atualizado.delay(
-            email=evento.email,
-            nome_politico=evento.nome_politico,
-            tipo_atualizacao=evento.tipo_atualizacao,
-            descricao=evento.descricao,
-        )
-        canais.append("email")
-
-    return {
-        "status": "enfileirado",
-        "politico_id": evento.politico_id,
-        "canais": canais,
-    }
+def service_problema_resolvido(db: Session, evento) -> dict:
+    payload = _dump_evento(evento)
+    payload["status"] = "resolvido"
+    return _publicar(db, "problema.status_alterado", payload, "media")
 
 
-def service_notificar_regiao(evento) -> dict:
-    task_push_multiplos.delay(
-        tokens=evento.tokens_fcm,
-        rua=evento.rua,
-        tipo=evento.tipo,
-        distancia_metros=evento.distancia_metros,
-        problema_id=evento.problema_id,
-    )
+def service_politico_atualizado(db: Session, evento) -> dict:
+    payload = _dump_evento(evento)
+    return _publicar(db, "politico.atualizado", payload, "media")
 
-    logger.info(
-        f"Multicast enfileirado | problema: {evento.problema_id} "
-        f"| destinatários: {len(evento.tokens_fcm)}"
-    )
 
-    return {
-        "status": "enfileirado",
-        "problema_id": evento.problema_id,
-        "destinatarios": len(evento.tokens_fcm),
-    }
+def service_notificar_regiao(db: Session, evento) -> dict:
+    payload = _dump_evento(evento)
+    return _publicar(db, "problema.criado", payload, _prioridade_problema(payload))

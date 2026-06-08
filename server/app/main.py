@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
-from app.routers import politicos, problemas, recomendacoes, usuarios, notificacoes
+from app.routers import notificacoes, politicos, problemas, recomendacoes, usuarios
 
 settings = get_settings()
 

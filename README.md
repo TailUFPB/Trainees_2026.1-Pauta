@@ -20,8 +20,9 @@ pauta/
   (embeddings dos políticos). Em produção é o Postgres do **Supabase**.
 - **Auth**: Supabase Auth (JWT). O backend valida o token; o front usa a sessão do SDK.
 - **Storage de fotos**: Supabase Storage (com fallback local em dev).
-- **Notificações**: o backend só **produz eventos** na tabela `eventos_outbox`. O
-  Notification Service (dono a definir: Node/BullMQ ou Python/Celery) consome de lá.
+- **Notificações**: o backend **produz eventos** na tabela `eventos_outbox`. O
+  Notification Service em Python/Celery consome de lá, dispara push/email e marca
+  os eventos como processados.
 
 ## Subir o ambiente
 
@@ -64,6 +65,16 @@ uv run uvicorn app.main:app --reload --port 8000
 
 Docs interativas (Swagger): http://localhost:8000/docs
 
+Worker de notificações:
+
+```bash
+cd server
+uv run celery -A app.workers.celery_app worker --beat --loglevel=info
+```
+
+Para push real, deixe `server/credenciais_firebase.json` apenas localmente ou defina
+`FIREBASE_CREDENTIALS_PATH`. Para email real, configure `RESEND_API_KEY` e `EMAIL_FROM`.
+
 ```bash
 uv run pytest                     # roda os testes (precisa do banco no ar)
 ```
@@ -92,6 +103,7 @@ Dia a dia:
 make db-up            # só o banco (docker)
 make db-psql          # abre psql conectado no banco
 make server-dev       # só o backend
+make server-worker    # worker Celery + beat das notificações
 make client-dev       # só o front
 make server-test      # pytest
 make server-migrate                              # aplica migrations
@@ -115,7 +127,7 @@ make clean            # limpa caches (.next, __pycache__, mypy, ruff)
 |------|--------|
 | Reportar problema + mapa | **End-to-end** (front + back + geo + evento) |
 | Recomendação de candidatos | Contrato + query pgvector prontos; aguarda embeddings |
-| Notificações | Produção de eventos no outbox pronta; consumidor é de outro dono |
+| Notificações | Eventos no outbox + consumidor Celery para push/email |
 | LLM de fotos | Interface/stub pronta; classificação real é de outro dono |
 
 ## Pontos de integração para o time (seams)
@@ -129,13 +141,14 @@ sem tocar em rotas, banco ou contratos:
   (stub) e `top_politicos_por_similaridade(...)` (query de cosseno pronta). A dimensão
   do embedding é `EMBEDDING_DIM` (`.env`, default 768) e **deve bater** com o modelo do
   pipeline offline que popula `politicos.embedding`.
-- **Notificações** — `services/eventos.py`. O backend grava em `eventos_outbox`
-  (`tipo`, `payload`, `prioridade`, `processado_em IS NULL` = pendente). O consumidor lê
-  os pendentes, dispara push/email e marca como processados.
+- **Notificações** — `routers/notificacoes.py` e `services/eventos.py`. Os endpoints
+  públicos ficam em `/notificacoes/...`, mas o contrato interno é o outbox:
+  `tipo`, `payload`, `prioridade`, `processado_em IS NULL` = pendente. O consumidor
+  Celery lê os pendentes, dispara push/email e marca como processados.
 
 ## Coordenação pendente
 
 - **`EMBEDDING_DIM`** precisa ser combinado com o colega da recomendação.
 - **Random Forest** (citado na documentação inicial) foi **descartado** pelo time em
   favor de embeddings + similaridade de cosseno + k-means. Alinhar a doc-mãe.
-- **Consumidor do outbox** (Node vs Python) é decisão de time.
+- **Raios de notificação por tipo de problema** ainda precisam ser validados com o time.

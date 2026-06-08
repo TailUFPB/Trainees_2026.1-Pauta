@@ -1,8 +1,9 @@
 # back/app/workers/providers/email_sender.py
 # Integração com Resend para envio de emails
 
-import os
 import logging
+import os
+
 import resend
 from dotenv import load_dotenv
 

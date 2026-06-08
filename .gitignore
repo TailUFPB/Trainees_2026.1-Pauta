@@ -27,6 +27,8 @@ server/.pytest_cache/
 server/uploads/
 .python-version
 firebase-credentials.json
+server/firebase-credentials.json
+server/credenciais_firebase.json
 
 # production
 /build

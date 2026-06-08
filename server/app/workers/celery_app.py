@@ -7,6 +7,7 @@
 # ─────────────────────────────────────────────────────────────────────
 
 import os
+
 from celery import Celery
 from dotenv import load_dotenv
 
@@ -31,4 +32,10 @@ celery.conf.update(
     task_acks_late=True,               # remove da fila só após confirmar sucesso
     task_reject_on_worker_lost=True,   # volta pra fila se o Worker cair
     worker_max_tasks_per_child=1000,   # reinicia Worker após 1000 tarefas
+    beat_schedule={
+        "processar-eventos-outbox-a-cada-10s": {
+            "task": "app.workers.tasks.task_processar_eventos_outbox",
+            "schedule": 10.0,
+        },
+    },
 )

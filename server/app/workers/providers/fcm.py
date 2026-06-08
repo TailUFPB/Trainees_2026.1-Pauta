@@ -2,25 +2,26 @@
 # Integração com Firebase Cloud Messaging
 # Igual ao providers/fcm.py do projeto standalone — só mudou o caminho
 
-import os
 import logging
+import os
+
 import firebase_admin
-from firebase_admin import credentials, messaging
 from dotenv import load_dotenv
+from firebase_admin import credentials, messaging
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
 def _inicializar_firebase():
     if not firebase_admin._apps:
-        caminho = os.getenv("FIREBASE_CREDENTIALS_PATH", "./firebase-credentials.json")
+        caminho = os.getenv("FIREBASE_CREDENTIALS_PATH", "./credenciais_firebase.json")
         if not os.path.exists(caminho):
             logger.warning(f"Credenciais Firebase não encontradas: {caminho}")
             return False
         firebase_admin.initialize_app(credentials.Certificate(caminho))
     return True
 
-def enviar_push(token_fcm: str, titulo: str, mensagem: str, dados: dict = None) -> bool:
+def enviar_push(token_fcm: str, titulo: str, mensagem: str, dados: dict | None = None) -> bool:
     if not _inicializar_firebase():
         return False
     try:
@@ -39,7 +40,9 @@ def enviar_push(token_fcm: str, titulo: str, mensagem: str, dados: dict = None) 
         logger.error(f"Erro ao enviar push: {e}")
         raise
 
-def enviar_push_multiplos(tokens: list, titulo: str, mensagem: str, dados: dict = None) -> dict:
+def enviar_push_multiplos(
+    tokens: list, titulo: str, mensagem: str, dados: dict | None = None
+) -> dict:
     if not _inicializar_firebase():
         return {"sucesso": 0, "falha": len(tokens)}
     try:
