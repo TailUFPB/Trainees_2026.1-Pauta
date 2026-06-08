@@ -16,7 +16,6 @@ export type StatusProblema = "aberto" | "em_andamento" | "resolvido";
 
 export interface Problema {
   id: string;
-  autor_id: string | null;
   foto_url: string | null;
   lat: number;
   lng: number;
@@ -33,6 +32,9 @@ export interface Problema {
   descricao: string | null;
   created_at: string;
 }
+
+/** Versão pública de um problema — sem autor_id e descricao. */
+export type ProblemaPublico = Omit<Problema, "autor_id" | "descricao">;
 
 export interface PoliticoMatch {
   id: string;

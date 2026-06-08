@@ -28,9 +28,13 @@ class PoliticoOut(BaseModel):
 
 @router.get("", response_model=list[PoliticoOut])
 def listar_politicos(
-    limite: int = 200, db: Session = Depends(get_db)
+    limite: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
 ) -> list[PoliticoOut]:
-    politicos = db.scalars(select(Politico).limit(limite)).all()
+    politicos = db.scalars(
+        select(Politico).order_by(Politico.id).offset(offset).limit(limite)
+    ).all()
     return [
         PoliticoOut(
             id=p.id,
@@ -57,5 +61,14 @@ def seguir(
     db.add(SeguidorPolitico(user_id=user.id, politico_id=politico_id))
     try:
         db.commit()
-    except IntegrityError:
-        db.rollback()  # já segue — idempotente
+    except IntegrityError as exc:
+        db.rollback()
+        constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", "") or ""
+        if constraint == "uq_seguidor_politico":
+            return  # já segue — idempotente
+        if constraint.endswith("_politico_id_fkey") or constraint.endswith("_user_id_fkey"):
+            # Race: político (ou usuário) removido entre o guard e o commit.
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, "Recurso referenciado não existe."
+            ) from exc
+        raise

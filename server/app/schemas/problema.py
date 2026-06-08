@@ -15,7 +15,7 @@ TipoProblema = Literal[
     "outro",
 ]
 Severidade = Literal["baixa", "media", "alta", "critica"]
-StatusProblema = Literal["aberto", "em_andamento", "resolvido"]
+StatusProblema = Literal["aberto", "em_andamento", "resolvido", "arquivado", "cancelado"]
 
 
 class ClassificacaoFoto(BaseModel):
@@ -34,7 +34,6 @@ class ClassificacaoFoto(BaseModel):
 
 class ProblemaOut(BaseModel):
     id: UUID
-    autor_id: UUID | None
     foto_url: str | None
     lat: float
     lng: float
@@ -49,6 +48,35 @@ class ProblemaOut(BaseModel):
     resolvido_por: str | None
     resolvido_em: datetime | None
     descricao: str | None
+    autor_nome: str | None  # None quando anônimo
+    anonimo: bool
+    created_at: datetime
+
+
+class ProblemaPublicoOut(BaseModel):
+    """Versão pública de um problema — oculta autor_id e descricao livre.
+
+    Usado em GET /problemas (lista pra mapa) e em GET /problemas/{id} quando o
+    solicitante não é o autor. Mantém todos os campos não-PII pra que o mapa e
+    consumidores externos continuem funcionando.
+    """
+
+    id: UUID
+    foto_url: str | None
+    lat: float
+    lng: float
+    tipo_problema: TipoProblema | None
+    severidade: Severidade | None
+    resumo_llm: str | None
+    palavras_chave: list[str]
+    confianca: float | None
+    modelo_utilizado: str | None
+    precisa_revisao: bool
+    status: StatusProblema
+    resolvido_por: str | None
+    resolvido_em: datetime | None
+    autor_nome: str | None  # None quando anônimo
+    anonimo: bool
     created_at: datetime
 
 

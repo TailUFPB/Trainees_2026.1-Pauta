@@ -70,6 +70,28 @@ doctor: ## Valida pré-requisitos do ambiente (Docker, uv, Node>=20, npm)
 	fi; \
 	if [ -f server/.env ]; then \
 		printf "  \033[32m✓\033[0m server/.env\n"; \
+		CIFRA=$$(grep -E '^AUTOR_CIFRA_KEY=' server/.env | tail -1 | cut -d= -f2-); \
+		if [ -z "$$CIFRA" ]; then \
+			printf "  \033[31m✗\033[0m AUTOR_CIFRA_KEY vazia/ausente em server/.env\n"; \
+			printf "    Gere com: cd server && uv run python -c \"import secrets; print(secrets.token_urlsafe(32))\"\n"; \
+			FAIL=$$((FAIL+1)); \
+		else \
+			printf "  \033[32m✓\033[0m AUTOR_CIFRA_KEY definida\n"; \
+		fi; \
+		LOOKUP=$$(grep -E '^AUTOR_LOOKUP_KEY=' server/.env | tail -1 | cut -d= -f2-); \
+		if [ -z "$$LOOKUP" ]; then \
+			printf "  \033[31m✗\033[0m AUTOR_LOOKUP_KEY vazia/ausente em server/.env\n"; \
+			FAIL=$$((FAIL+1)); \
+		else \
+			printf "  \033[32m✓\033[0m AUTOR_LOOKUP_KEY definida\n"; \
+		fi; \
+		SBURL=$$(grep -E '^SUPABASE_URL=' server/.env | tail -1 | cut -d= -f2-); \
+		if [ -z "$$SBURL" ]; then \
+			printf "  \033[31m✗\033[0m SUPABASE_URL vazia/ausente em server/.env (necessária pro JWKS do Auth)\n"; \
+			FAIL=$$((FAIL+1)); \
+		else \
+			printf "  \033[32m✓\033[0m SUPABASE_URL definida\n"; \
+		fi; \
 	else \
 		printf "  \033[33m⚠\033[0m server/.env não existe — rode 'make server-env'\n"; \
 	fi; \

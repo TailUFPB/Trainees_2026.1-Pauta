@@ -54,8 +54,12 @@ export const api = {
     );
   },
 
-  async listarPoliticos(): Promise<Politico[]> {
-    return handle(await fetch(`${API_URL}/politicos?limite=200`));
+  async listarPoliticos(opts?: { limite?: number; offset?: number }): Promise<Politico[]> {
+    const limite = opts?.limite ?? 50;
+    const offset = opts?.offset ?? 0;
+    return handle(
+      await fetch(`${API_URL}/politicos?limite=${limite}&offset=${offset}`),
+    );
   },
 
   async definirInteresses(texto: string): Promise<unknown> {
@@ -64,6 +68,35 @@ export const api = {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ texto }),
+      }),
+    );
+  },
+
+  async meusProblemas(opts?: {
+    status?: string[];
+    limite?: number;
+    offset?: number;
+  }): Promise<Problema[]> {
+    const qs = new URLSearchParams();
+    if (opts?.limite != null) qs.set("limite", String(opts.limite));
+    if (opts?.offset != null) qs.set("offset", String(opts.offset));
+    if (opts?.status) for (const s of opts.status) qs.append("status", s);
+    return handle(
+      await fetch(`${API_URL}/usuarios/me/problemas?${qs}`, {
+        headers: await authHeaders(),
+      }),
+    );
+  },
+
+  async atualizarStatusProblema(
+    id: string,
+    body: { status: "resolvido" | "cancelado" },
+  ): Promise<Problema> {
+    return handle(
+      await fetch(`${API_URL}/problemas/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(body),
       }),
     );
   },

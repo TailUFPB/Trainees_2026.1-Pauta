@@ -16,7 +16,10 @@ from sqlalchemy.orm import Session
 from app.models.evento import EventoOutbox
 
 TipoEvento = Literal[
-    "problema.criado", "problema.status_alterado", "politico.status_alterado"
+    "problema.criado",
+    "problema.status_alterado",
+    "politico.status_alterado",
+    "publicacao.criada",
 ]
 Prioridade = Literal["alta", "media", "baixa"]
 

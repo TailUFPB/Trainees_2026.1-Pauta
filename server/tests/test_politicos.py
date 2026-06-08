@@ -33,13 +33,25 @@ def test_listar_inclui_foto_e_url_perfil(client, db):
     assert por_nome["Bia"]["url_perfil"] is None
 
 
-def test_limite_default_acomoda_97_politicos(client, db):
-    # Garante que o default cobre o universo atual sem precisar de ?limite=
-    for i in range(150):
+def test_listar_default_retorna_no_maximo_50(client, db):
+    # Paginação real: default é uma página de 50.
+    for i in range(60):
         db.add(Politico(id=uuid.uuid4(), nome=f"P{i:03d}", municipio="X"))
     db.commit()
 
     resp = client.get("/politicos")
 
     assert resp.status_code == 200
-    assert len(resp.json()) == 150  # default 200 acomoda
+    assert len(resp.json()) == 50
+
+
+def test_listar_paginacao_disjunta_por_offset(client, db):
+    for i in range(60):
+        db.add(Politico(id=uuid.uuid4(), nome=f"P{i:03d}", municipio="X"))
+    db.commit()
+
+    pg1 = client.get("/politicos?limite=25&offset=0").json()
+    pg2 = client.get("/politicos?limite=25&offset=25").json()
+
+    assert len(pg1) == 25 and len(pg2) == 25
+    assert {p["id"] for p in pg1}.isdisjoint({p["id"] for p in pg2})
