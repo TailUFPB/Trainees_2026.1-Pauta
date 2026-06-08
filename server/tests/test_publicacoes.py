@@ -41,6 +41,15 @@ def test_criar_publicacao_conteudo_vazio_eh_422(client, auth_headers) -> None:
     assert resp.status_code == 422
 
 
+def test_criar_publicacao_whitespace_eh_422(client, auth_headers) -> None:
+    resp = client.post(
+        "/publicacoes",
+        json={"conteudo": "   ", "anonimo": False},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+
 def test_listar_minhas_publicacoes_exclui_anonimas(client, auth_headers) -> None:
     """Anônimas NÃO aparecem em /usuarios/me/publicacoes porque autor_lookup é NULL."""
     client.post("/publicacoes", json={"conteudo": "a", "anonimo": False}, headers=auth_headers)
