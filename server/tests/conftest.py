@@ -50,6 +50,17 @@ _TABELAS = [
 ]
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _instalar_pgcrypto():
+    """Garante pgcrypto no DB de teste — usado por cripto_autor (pgp_sym_encrypt).
+
+    Idempotente; Task 3 da Fatia 2 instala via Alembic 0011, mas Task 2 roda
+    antes e precisa da extensão já disponível pros testes."""
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgcrypto"))
+    yield
+
+
 @pytest.fixture(autouse=True)
 def _mock_jwks():
     """Injeta a chave pública de teste no cache JWKS do auth — evita rede em testes."""
