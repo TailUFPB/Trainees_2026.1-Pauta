@@ -48,6 +48,8 @@ class ProblemaOut(BaseModel):
     resolvido_por: str | None
     resolvido_em: datetime | None
     descricao: str | None
+    autor_nome: str | None  # None quando anônimo
+    anonimo: bool
     created_at: datetime
 
 
@@ -73,6 +75,8 @@ class ProblemaPublicoOut(BaseModel):
     status: StatusProblema
     resolvido_por: str | None
     resolvido_em: datetime | None
+    autor_nome: str | None  # None quando anônimo
+    anonimo: bool
     created_at: datetime
 
 

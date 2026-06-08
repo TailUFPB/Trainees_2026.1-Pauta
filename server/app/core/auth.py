@@ -66,6 +66,13 @@ def _decodificar(token: str) -> dict:
         ) from exc
 
 
+def _nome_publico_de_email(email: str | None) -> str | None:
+    """Deriva nome_publico da parte local do email. None se email vazio/inválido."""
+    if not email or "@" not in email:
+        return None
+    return email.split("@", 1)[0] or None
+
+
 def get_current_user(
     credenciais: HTTPAuthorizationCredentials = Depends(bearer),
     db: Session = Depends(get_db),
@@ -76,13 +83,23 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token sem 'sub'")
 
     user_id = UUID(sub)
+    email = claims.get("email")
     user = db.get(User, user_id)
     if user is None:
         # Primeiro acesso: cria o registro local espelhando o auth.users do Supabase.
-        user = User(id=user_id)
+        # nome_publico default = parte local do e-mail (usuário pode personalizar depois).
+        user = User(id=user_id, nome_publico=_nome_publico_de_email(email))
         db.add(user)
         db.commit()
         db.refresh(user)
+    elif user.nome_publico is None:
+        # Backfill lazy: usuários criados antes do nome_publico existir ganham um
+        # default na primeira autenticação após esta mudança.
+        novo_nome = _nome_publico_de_email(email)
+        if novo_nome:
+            user.nome_publico = novo_nome
+            db.commit()
+            db.refresh(user)
     return user
 
 
@@ -103,10 +120,17 @@ def get_current_user_optional(
     if not sub:
         return None
     user_id = UUID(sub)
+    email = claims.get("email")
     user = db.get(User, user_id)
     if user is None:
-        user = User(id=user_id)
+        user = User(id=user_id, nome_publico=_nome_publico_de_email(email))
         db.add(user)
         db.commit()
         db.refresh(user)
+    elif user.nome_publico is None:
+        novo_nome = _nome_publico_de_email(email)
+        if novo_nome:
+            user.nome_publico = novo_nome
+            db.commit()
+            db.refresh(user)
     return user
