@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { PostCard } from "@/components/feed/PostCard";
 import { buscarFeedClient, type ItemFeed } from "@/lib/api/feed";
-
-// Composer será adicionado na Task 13 — por enquanto exibe só a lista + paginação.
+import { Composer } from "./Composer";
 
 interface Props {
   inicial: ItemFeed[];
@@ -17,6 +16,9 @@ export function FeedView({ inicial }: Props) {
   const [carregando, setCarregando] = useState(false);
   // Se a página inicial veio incompleta, já sabemos que não há mais nada.
   const [acabou, setAcabou] = useState(inicial.length < PAGINA);
+
+  const handleNova = (nova: ItemFeed) =>
+    setItens((prev) => [nova, ...prev]);
 
   const carregarMais = async () => {
     if (carregando || acabou || itens.length === 0) return;
@@ -31,26 +33,27 @@ export function FeedView({ inicial }: Props) {
     }
   };
 
-  if (itens.length === 0) {
-    return (
-      <div className="rounded-lg border border-dashed border-border p-8 text-center">
-        <p className="text-text-muted">
-          Nada por aqui ainda. Seja o primeiro a publicar.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <>
-      <ul className="flex flex-col gap-4">
-        {itens.map((item) => (
-          <li key={`${item.tipo}-${item.id}`}>
-            <PostCard item={item} />
-          </li>
-        ))}
-      </ul>
-      {!acabou && (
+      <Composer onPublicada={handleNova} />
+
+      {itens.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center">
+          <p className="text-text-muted">
+            Nada por aqui ainda. Seja o primeiro a publicar.
+          </p>
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-4">
+          {itens.map((item) => (
+            <li key={`${item.tipo}-${item.id}`}>
+              <PostCard item={item} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!acabou && itens.length > 0 && (
         <div className="mt-6 flex justify-center">
           <button
             type="button"
