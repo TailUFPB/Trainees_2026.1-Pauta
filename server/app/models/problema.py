@@ -16,9 +16,12 @@ class Problema(Base):
     __tablename__ = "problemas"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    # HMAC-SHA256 do user.id do autor. Calculado por app.core.hmac_autor.autor_hmac.
-    # Substitui a antiga FK autor_id desde a migration 0010 — pseudonimiza autoria.
-    autor_hmac: Mapped[bytes | None] = mapped_column(LargeBinary)
+    # Cifra reversível do autor (pgcrypto). NULL quando anônimo.
+    autor_cifrado: Mapped[bytes | None] = mapped_column(LargeBinary)
+    # HMAC determinístico do user.id — usado para autorização e queries "meus reportes".
+    autor_lookup: Mapped[bytes | None] = mapped_column(LargeBinary)
+    # Quando true, ninguém consegue identificar o autor.
+    anonimo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     foto_url: Mapped[str | None] = mapped_column(String(1024))
 
