@@ -86,7 +86,7 @@ function ConteudoProblema({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={item.foto_url}
-          alt=""
+          alt={item.resumo_llm ?? "Foto do reporte"}
           className="mt-3 max-h-96 w-full rounded-md object-cover"
           loading="lazy"
         />

@@ -15,7 +15,8 @@ async function serverAuthHeaders(): Promise<Record<string, string>> {
 }
 
 // Wrapper tolerante: qualquer falha (rede, 4xx, 5xx) vira [] pra não derrubar
-// o dashboard. As stats são informativas, não críticas.
+// o dashboard. As stats são informativas, não críticas — mas logamos pra
+// debug não virar caça-fantasma (zeros no UI sem pista nos logs).
 async function fetchListaTolerante<T>(path: string): Promise<T[]> {
   try {
     const headers = await serverAuthHeaders();
@@ -23,10 +24,14 @@ async function fetchListaTolerante<T>(path: string): Promise<T[]> {
       headers,
       cache: "no-store",
     });
-    if (!resp.ok) return [];
+    if (!resp.ok) {
+      console.error(`buscarStats falhou em ${path}: HTTP ${resp.status}`);
+      return [];
+    }
     const data = (await resp.json()) as unknown;
     return Array.isArray(data) ? (data as T[]) : [];
-  } catch {
+  } catch (err) {
+    console.error(`buscarStats falhou em ${path}:`, err);
     return [];
   }
 }

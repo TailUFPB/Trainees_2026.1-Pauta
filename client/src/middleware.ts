@@ -2,11 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 // Rotas que dispensam autenticação: landing, fluxo de auth e estáticos.
+// O matcher abaixo já filtra /_next/static, /_next/image, favicon.ico, *.svg e *.png
+// antes mesmo do middleware rodar. Não adicione padrões de imagem aqui — `/conta/foto.jpg`
+// não deve virar pública por acidente.
 const ROTAS_PUBLICAS: RegExp[] = [
   /^\/$/,                         // landing
   /^\/auth\//,                    // /auth/callback etc.
-  /^\/_next\//,                   // estáticos do Next
-  /^\/.*\.(png|svg|jpg|jpeg|webp|ico)$/,
 ];
 
 function ehPublica(pathname: string): boolean {
