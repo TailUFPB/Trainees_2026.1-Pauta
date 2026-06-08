@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
-from app.core.hmac_autor import autor_hmac
+from app.core.cripto_autor import lookup_autor
 from app.db.session import get_db
 from app.models.problema import Problema
 from app.models.user import User
@@ -20,7 +20,9 @@ from app.services import recomendacao
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
 
-def _to_problema_out(p: Problema, lat: float, lng: float) -> ProblemaOut:
+def _to_problema_out(
+    p: Problema, lat: float, lng: float, autor_nome: str | None
+) -> ProblemaOut:
     return ProblemaOut(
         id=p.id,
         foto_url=p.foto_url,
@@ -37,6 +39,8 @@ def _to_problema_out(p: Problema, lat: float, lng: float) -> ProblemaOut:
         resolvido_por=p.resolvido_por,
         resolvido_em=p.resolvido_em,
         descricao=p.descricao,
+        autor_nome=autor_nome,
+        anonimo=p.anonimo,
         created_at=p.created_at,
     )
 
@@ -102,13 +106,18 @@ def listar_meus_problemas(
             ST_Y(Problema.localizacao).label("lat"),
             ST_X(Problema.localizacao).label("lng"),
         )
-        .where(Problema.autor_hmac == autor_hmac(user.id))
+        .where(Problema.autor_lookup == lookup_autor(user.id))
         .order_by(Problema.created_at.desc())
     )
     if status:
         stmt = stmt.where(Problema.status.in_(status))
     stmt = stmt.limit(limite).offset(offset)
-    return [_to_problema_out(p, lat, lng) for p, lat, lng in db.execute(stmt).all()]
+    # Esta é a rota "meus reportes" — autor é sempre o usuário autenticado.
+    # Anônimo continua None; do contrário, vem direto de user.nome_publico (sem decifrar).
+    return [
+        _to_problema_out(p, lat, lng, None if p.anonimo else user.nome_publico)
+        for p, lat, lng in db.execute(stmt).all()
+    ]
 
 
 @router.get("/me/problemas/{problema_id}", response_model=ProblemaOut)
@@ -129,10 +138,11 @@ def obter_meu_problema(
             ST_X(Problema.localizacao).label("lng"),
         ).where(
             Problema.id == problema_id,
-            Problema.autor_hmac == autor_hmac(user.id),
+            Problema.autor_lookup == lookup_autor(user.id),
         )
     ).first()
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporte não encontrado.")
     p, lat, lng = row
-    return _to_problema_out(p, lat, lng)
+    autor_nome = None if p.anonimo else user.nome_publico
+    return _to_problema_out(p, lat, lng, autor_nome)
