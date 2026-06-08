@@ -27,7 +27,15 @@ export function FeedView({ inicial }: Props) {
       const cursor = itens[itens.length - 1].created_at;
       const mais = await buscarFeedClient({ cursor, limite: PAGINA });
       if (mais.length < PAGINA) setAcabou(true);
-      if (mais.length > 0) setItens((prev) => [...prev, ...mais]);
+      if (mais.length > 0) {
+        // Dedupe por (tipo, id) — evita itens duplicados se "Carregar mais"
+        // for clicado duas vezes ou se a paginação retornar overlap no cursor.
+        setItens((prev) => {
+          const visto = new Set(prev.map((p) => `${p.tipo}-${p.id}`));
+          const novos = mais.filter((m) => !visto.has(`${m.tipo}-${m.id}`));
+          return [...prev, ...novos];
+        });
+      }
     } finally {
       setCarregando(false);
     }
