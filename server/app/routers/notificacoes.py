@@ -4,8 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.core.auth import get_current_user
 from app.db.session import get_db
+from app.models.user import User
 from app.services.notificacoes import (
+    service_notificacao_teste,
     service_notificar_regiao,
     service_politico_atualizado,
     service_problema_criado,
@@ -67,6 +70,15 @@ class EventoNotificarRegiao(BaseModel):
     emails: list[str] = Field(default_factory=list)
 
 
+class EventoTesteNotificacao(BaseModel):
+    titulo: str = Field("Notificacao de teste", min_length=1, max_length=160)
+    mensagem: str = Field(
+        "Sua central interna de notificacoes esta funcionando.",
+        min_length=1,
+        max_length=4000,
+    )
+
+
 def _tem_destinatario_explicito(evento: BaseModel) -> bool:
     return bool(
         getattr(evento, "token_fcm", None)
@@ -121,3 +133,17 @@ def notificar_regiao(
 ) -> dict:
     _exigir_destino_para_geoalerta(evento)
     return service_notificar_regiao(db, evento)
+
+
+@router.post("/teste", status_code=status.HTTP_202_ACCEPTED)
+def notificacao_teste(
+    evento: EventoTesteNotificacao,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    return service_notificacao_teste(
+        db,
+        user_id=str(user.id),
+        titulo=evento.titulo,
+        mensagem=evento.mensagem,
+    )

@@ -59,3 +59,12 @@ def service_politico_atualizado(db: Session, evento) -> dict:
 def service_notificar_regiao(db: Session, evento) -> dict:
     payload = _dump_evento(evento)
     return _publicar(db, "problema.criado", payload, _prioridade_problema(payload))
+
+
+def service_notificacao_teste(db: Session, *, user_id: str, titulo: str, mensagem: str) -> dict:
+    payload = {
+        "user_ids": [user_id],
+        "titulo": titulo,
+        "mensagem": mensagem,
+    }
+    return _publicar(db, "notificacao.teste", payload, "baixa")

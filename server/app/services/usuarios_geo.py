@@ -25,6 +25,7 @@ class DestinatarioNotificacao:
     user_id: UUID
     email: str | None
     token_fcm: str | None
+    prefs_notificacao: dict
     distancia_metros: int | None = None
 
 
@@ -36,13 +37,13 @@ def _token_fcm_expr():
     return User.prefs_notificacao.op("->>")("token_fcm")
 
 
-def _dedupe_com_canal(destinatarios: list[DestinatarioNotificacao]) -> list[DestinatarioNotificacao]:
+def _dedupe_destinatarios(
+    destinatarios: list[DestinatarioNotificacao],
+) -> list[DestinatarioNotificacao]:
     vistos: set[UUID] = set()
     resultado: list[DestinatarioNotificacao] = []
     for destinatario in destinatarios:
         if destinatario.user_id in vistos:
-            continue
-        if not destinatario.email and not destinatario.token_fcm:
             continue
         vistos.add(destinatario.user_id)
         resultado.append(destinatario)
@@ -63,21 +64,28 @@ def buscar_usuarios_por_raio(
     token_fcm = _token_fcm_expr().label("token_fcm")
 
     rows = db.execute(
-        select(User.id, User.email, token_fcm, distancia.label("distancia_metros"))
+        select(
+            User.id,
+            User.email,
+            token_fcm,
+            User.prefs_notificacao,
+            distancia.label("distancia_metros"),
+        )
         .where(User.localizacao.is_not(None))
         .where(func.ST_DWithin(localizacao_geog, ponto_geog, raio_metros))
         .order_by(distancia.asc())
     ).all()
 
-    return _dedupe_com_canal(
+    return _dedupe_destinatarios(
         [
             DestinatarioNotificacao(
                 user_id=user_id,
                 email=email,
                 token_fcm=token_fcm,
+                prefs_notificacao=prefs_notificacao or {},
                 distancia_metros=round(distancia_metros) if distancia_metros is not None else None,
             )
-            for user_id, email, token_fcm, distancia_metros in rows
+            for user_id, email, token_fcm, prefs_notificacao, distancia_metros in rows
         ]
     )
 
@@ -87,14 +95,19 @@ def buscar_destinatarios_por_problema(
 ) -> list[DestinatarioNotificacao]:
     token_fcm = _token_fcm_expr().label("token_fcm")
     rows = db.execute(
-        select(User.id, User.email, token_fcm)
+        select(User.id, User.email, token_fcm, User.prefs_notificacao)
         .join(Inscricao, Inscricao.user_id == User.id)
         .where(Inscricao.problema_id == problema_id)
     ).all()
-    return _dedupe_com_canal(
+    return _dedupe_destinatarios(
         [
-            DestinatarioNotificacao(user_id=user_id, email=email, token_fcm=token_fcm)
-            for user_id, email, token_fcm in rows
+            DestinatarioNotificacao(
+                user_id=user_id,
+                email=email,
+                token_fcm=token_fcm,
+                prefs_notificacao=prefs_notificacao or {},
+            )
+            for user_id, email, token_fcm, prefs_notificacao in rows
         ]
     )
 
@@ -104,13 +117,18 @@ def buscar_destinatarios_por_politico(
 ) -> list[DestinatarioNotificacao]:
     token_fcm = _token_fcm_expr().label("token_fcm")
     rows = db.execute(
-        select(User.id, User.email, token_fcm)
+        select(User.id, User.email, token_fcm, User.prefs_notificacao)
         .join(SeguidorPolitico, SeguidorPolitico.user_id == User.id)
         .where(SeguidorPolitico.politico_id == politico_id)
     ).all()
-    return _dedupe_com_canal(
+    return _dedupe_destinatarios(
         [
-            DestinatarioNotificacao(user_id=user_id, email=email, token_fcm=token_fcm)
-            for user_id, email, token_fcm in rows
+            DestinatarioNotificacao(
+                user_id=user_id,
+                email=email,
+                token_fcm=token_fcm,
+                prefs_notificacao=prefs_notificacao or {},
+            )
+            for user_id, email, token_fcm, prefs_notificacao in rows
         ]
     )

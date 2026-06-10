@@ -6,6 +6,8 @@ from sqlalchemy import case, select
 
 from app.db.session import SessionLocal
 from app.models.evento import EventoOutbox
+from app.models.user import User
+from app.services.notificacoes_internas import canal_habilitado, criar_notificacao
 from app.services.usuarios_geo import (
     DestinatarioNotificacao,
     buscar_destinatarios_por_politico,
@@ -55,6 +57,164 @@ def _uuid_payload(payload: dict, chave: str) -> UUID:
     return UUID(str(payload[chave]))
 
 
+def _origem_evento_id(payload: dict) -> UUID:
+    return UUID(str(payload["_origem_evento_id"]))
+
+
+def _user_ids_payload(payload: dict) -> list[UUID]:
+    bruto = payload.get("user_ids") or []
+    ids = [bruto] if isinstance(bruto, str) else list(bruto)
+    if user_id := payload.get("user_id"):
+        ids.append(user_id)
+    resultado = []
+    for valor in ids:
+        try:
+            resultado.append(UUID(str(valor)))
+        except (TypeError, ValueError):
+            logger.warning("Ignorando user_id invalido em payload de notificacao: %r", valor)
+    return list(dict.fromkeys(resultado))
+
+
+def _destinatarios_por_user_ids(db, payload: dict) -> list[DestinatarioNotificacao]:
+    user_ids = _user_ids_payload(payload)
+    if not user_ids:
+        return []
+    token_fcm = User.prefs_notificacao.op("->>")("token_fcm").label("token_fcm")
+    rows = db.execute(
+        select(User.id, User.email, token_fcm, User.prefs_notificacao).where(User.id.in_(user_ids))
+    ).all()
+    return [
+        DestinatarioNotificacao(
+            user_id=user_id,
+            email=email,
+            token_fcm=token_fcm,
+            prefs_notificacao=prefs_notificacao or {},
+        )
+        for user_id, email, token_fcm, prefs_notificacao in rows
+    ]
+
+
+def _dedupe_destinatarios(destinatarios: list[DestinatarioNotificacao]) -> list[DestinatarioNotificacao]:
+    vistos: set[UUID] = set()
+    resultado = []
+    for destinatario in destinatarios:
+        if destinatario.user_id in vistos:
+            continue
+        vistos.add(destinatario.user_id)
+        resultado.append(destinatario)
+    return resultado
+
+
+def _prefs(destinatario: DestinatarioNotificacao, chave: str) -> bool:
+    return canal_habilitado(destinatario.prefs_notificacao, chave)
+
+
+def _canais_destinatario(destinatario: DestinatarioNotificacao) -> dict:
+    return {
+        "interna": "criada" if _prefs(destinatario, "interna") else "desativada",
+        "email": (
+            "pendente"
+            if destinatario.email and _prefs(destinatario, "email")
+            else "desativado_ou_indisponivel"
+        ),
+        "push": (
+            "pendente"
+            if destinatario.token_fcm and _prefs(destinatario, "push")
+            else "desativado_ou_indisponivel"
+        ),
+    }
+
+
+def _criar_interna_problema_novo(db, destinatario: DestinatarioNotificacao, payload: dict) -> int:
+    if not _prefs(destinatario, "interna") or not _prefs(destinatario, "problemas_perto"):
+        return 0
+    tipo = payload.get("tipo") or payload.get("tipo_problema") or "problema"
+    rua = payload.get("rua") or "regiao informada"
+    distancia = _distancia(destinatario, payload)
+    criada = criar_notificacao(
+        db,
+        origem_evento_id=_origem_evento_id(payload),
+        user_id=destinatario.user_id,
+        tipo="problema.criado",
+        titulo="Novo problema perto de voce",
+        mensagem=f"{tipo} reportado em {rua}, a {distancia}m de voce.",
+        link_destino=f"/mapa?problema_id={payload.get('problema_id')}",
+        canais=_canais_destinatario(destinatario),
+        dados={
+            "problema_id": payload.get("problema_id"),
+            "tipo": tipo,
+            "rua": rua,
+            "distancia_metros": distancia,
+        },
+    )
+    return int(criada)
+
+
+def _criar_interna_problema_status(db, destinatario: DestinatarioNotificacao, payload: dict) -> int:
+    if not _prefs(destinatario, "interna"):
+        return 0
+    tipo = payload.get("tipo") or "problema"
+    rua = payload.get("rua") or "local informado"
+    responsavel = payload.get("responsavel") or payload.get("resolvido_por") or "responsavel"
+    criada = criar_notificacao(
+        db,
+        origem_evento_id=_origem_evento_id(payload),
+        user_id=destinatario.user_id,
+        tipo="problema.status_alterado",
+        titulo="Problema resolvido",
+        mensagem=f"O {tipo} em {rua} foi resolvido por {responsavel}.",
+        link_destino=f"/mapa?problema_id={payload.get('problema_id')}",
+        canais=_canais_destinatario(destinatario),
+        dados={
+            "problema_id": payload.get("problema_id"),
+            "tipo": tipo,
+            "rua": rua,
+            "responsavel": responsavel,
+        },
+    )
+    return int(criada)
+
+
+def _criar_interna_politico(db, destinatario: DestinatarioNotificacao, payload: dict) -> int:
+    if not _prefs(destinatario, "interna") or not _prefs(destinatario, "politicos"):
+        return 0
+    nome = payload.get("nome_politico") or "politico acompanhado"
+    tipo_atualizacao = payload.get("tipo_atualizacao") or "Atualizacao"
+    criada = criar_notificacao(
+        db,
+        origem_evento_id=_origem_evento_id(payload),
+        user_id=destinatario.user_id,
+        tipo="politico.atualizado",
+        titulo=f"Novidade sobre {nome}",
+        mensagem=f"{tipo_atualizacao}. Toque para ver mais.",
+        link_destino=f"/candidatos?politico_id={payload.get('politico_id')}",
+        canais=_canais_destinatario(destinatario),
+        dados={
+            "politico_id": payload.get("politico_id"),
+            "nome_politico": nome,
+            "tipo_atualizacao": tipo_atualizacao,
+        },
+    )
+    return int(criada)
+
+
+def _criar_interna_teste(db, destinatario: DestinatarioNotificacao, payload: dict) -> int:
+    if not _prefs(destinatario, "interna"):
+        return 0
+    criada = criar_notificacao(
+        db,
+        origem_evento_id=_origem_evento_id(payload),
+        user_id=destinatario.user_id,
+        tipo="notificacao.teste",
+        titulo=payload.get("titulo") or "Notificacao de teste",
+        mensagem=payload.get("mensagem") or "Sua central interna de notificacoes esta funcionando.",
+        link_destino="/conta/notificacoes",
+        canais=_canais_destinatario(destinatario),
+        dados={"origem": "teste"},
+    )
+    return int(criada)
+
+
 def _enfileirar_push_multicast(tokens: list[str], payload: dict) -> int:
     if not tokens:
         return 0
@@ -73,13 +233,15 @@ def _enfileirar_push_multicast(tokens: list[str], payload: dict) -> int:
 
 
 def _enfileirar_problema_novo_destinatarios(
+    db,
     destinatarios: list[DestinatarioNotificacao],
     payload: dict,
 ) -> int:
     total = 0
     for destinatario in destinatarios:
         distancia_metros = _distancia(destinatario, payload)
-        if destinatario.token_fcm:
+        total += _criar_interna_problema_novo(db, destinatario, payload)
+        if destinatario.token_fcm and _prefs(destinatario, "push"):
             task_push_problema_novo.delay(
                 token_fcm=destinatario.token_fcm,
                 rua=payload.get("rua") or "regiao informada",
@@ -88,7 +250,7 @@ def _enfileirar_problema_novo_destinatarios(
                 problema_id=str(payload["problema_id"]),
             )
             total += 1
-        if destinatario.email:
+        if destinatario.email and _prefs(destinatario, "email"):
             task_email_problema_novo.delay(
                 email=destinatario.email,
                 rua=payload.get("rua") or "regiao informada",
@@ -102,6 +264,7 @@ def _enfileirar_problema_novo_destinatarios(
 def _processar_problema_criado(db, payload: dict) -> int:
     tokens, emails = _destinatarios_explicitos(payload)
     total = _enfileirar_push_multicast(tokens, payload)
+    destinatarios_explicitos = _destinatarios_por_user_ids(db, payload)
     for email in emails:
         task_email_problema_novo.delay(
             email=email,
@@ -112,16 +275,21 @@ def _processar_problema_criado(db, payload: dict) -> int:
         total += 1
 
     if payload.get("lat") is None or payload.get("lng") is None:
-        return total
+        return total + _enfileirar_problema_novo_destinatarios(
+            db, destinatarios_explicitos, payload
+        )
 
     raio_metros = int(payload.get("raio_metros") or raio_para_tipo(payload.get("tipo")))
-    destinatarios = buscar_usuarios_por_raio(
-        db,
-        lat=float(payload["lat"]),
-        lng=float(payload["lng"]),
-        raio_metros=raio_metros,
+    destinatarios = _dedupe_destinatarios(
+        destinatarios_explicitos
+        + buscar_usuarios_por_raio(
+            db,
+            lat=float(payload["lat"]),
+            lng=float(payload["lng"]),
+            raio_metros=raio_metros,
+        )
     )
-    return total + _enfileirar_problema_novo_destinatarios(destinatarios, payload)
+    return total + _enfileirar_problema_novo_destinatarios(db, destinatarios, payload)
 
 
 def _processar_problema_status(db, payload: dict) -> int:
@@ -148,12 +316,16 @@ def _processar_problema_status(db, payload: dict) -> int:
     if payload.get("problema_id") is None:
         return total
 
-    destinatarios = buscar_destinatarios_por_problema(
-        db,
-        problema_id=_uuid_payload(payload, "problema_id"),
+    destinatarios = _dedupe_destinatarios(
+        buscar_destinatarios_por_problema(
+            db,
+            problema_id=_uuid_payload(payload, "problema_id"),
+        )
+        + _destinatarios_por_user_ids(db, payload)
     )
     for destinatario in destinatarios:
-        if destinatario.token_fcm:
+        total += _criar_interna_problema_status(db, destinatario, payload)
+        if destinatario.token_fcm and _prefs(destinatario, "push"):
             task_push_problema_resolvido.delay(
                 token_fcm=destinatario.token_fcm,
                 rua=payload.get("rua") or "local informado",
@@ -164,7 +336,7 @@ def _processar_problema_status(db, payload: dict) -> int:
                 problema_id=str(payload["problema_id"]),
             )
             total += 1
-        if destinatario.email:
+        if destinatario.email and _prefs(destinatario, "email"):
             task_email_problema_resolvido.delay(
                 email=destinatario.email,
                 rua=payload.get("rua") or "local informado",
@@ -200,12 +372,16 @@ def _processar_politico(db, payload: dict) -> int:
     if payload.get("politico_id") is None:
         return total
 
-    destinatarios = buscar_destinatarios_por_politico(
-        db,
-        politico_id=_uuid_payload(payload, "politico_id"),
+    destinatarios = _dedupe_destinatarios(
+        buscar_destinatarios_por_politico(
+            db,
+            politico_id=_uuid_payload(payload, "politico_id"),
+        )
+        + _destinatarios_por_user_ids(db, payload)
     )
     for destinatario in destinatarios:
-        if destinatario.token_fcm:
+        total += _criar_interna_politico(db, destinatario, payload)
+        if destinatario.token_fcm and _prefs(destinatario, "push"):
             task_push_politico_atualizado.delay(
                 token_fcm=destinatario.token_fcm,
                 nome_politico=payload["nome_politico"],
@@ -213,7 +389,7 @@ def _processar_politico(db, payload: dict) -> int:
                 politico_id=str(payload["politico_id"]),
             )
             total += 1
-        if destinatario.email:
+        if destinatario.email and _prefs(destinatario, "email"):
             task_email_politico_atualizado.delay(
                 email=destinatario.email,
                 nome_politico=payload["nome_politico"],
@@ -224,14 +400,23 @@ def _processar_politico(db, payload: dict) -> int:
     return total
 
 
+def _processar_notificacao_teste(db, payload: dict) -> int:
+    total = 0
+    for destinatario in _destinatarios_por_user_ids(db, payload):
+        total += _criar_interna_teste(db, destinatario, payload)
+    return total
+
+
 def _processar_evento(db, evento: EventoOutbox) -> int:
-    payload = evento.payload or {}
+    payload = {**(evento.payload or {}), "_origem_evento_id": evento.id}
     if evento.tipo == "problema.criado":
         return _processar_problema_criado(db, payload)
     if evento.tipo == "problema.status_alterado":
         return _processar_problema_status(db, payload)
     if evento.tipo in {"politico.status_alterado", "politico.atualizado"}:
         return _processar_politico(db, payload)
+    if evento.tipo == "notificacao.teste":
+        return _processar_notificacao_teste(db, payload)
     logger.info("Evento sem consumidor de notificacao | id=%s tipo=%s", evento.id, evento.tipo)
     return 0
 

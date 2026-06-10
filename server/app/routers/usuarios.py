@@ -1,10 +1,11 @@
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from geoalchemy2.elements import WKTElement
 from geoalchemy2.functions import ST_X, ST_Y
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,13 @@ from app.models.user import User
 from app.schemas.problema import ProblemaOut, StatusProblema
 from app.schemas.recomendacao import InteressesIn
 from app.services import recomendacao
+from app.services.notificacoes_internas import (
+    contar_nao_lidas,
+    listar_notificacoes,
+    marcar_como_lida,
+    normalizar_prefs_notificacao,
+    salvar_prefs_notificacao,
+)
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
@@ -50,6 +58,39 @@ class UsuarioOut(BaseModel):
     id: str
     tem_interesses: bool
     tem_localizacao: bool
+
+
+class NotificacaoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tipo: str
+    titulo: str
+    mensagem: str
+    link_destino: str | None
+    lida: bool
+    canais: dict
+    dados: dict
+    created_at: datetime
+    lida_em: datetime | None
+
+
+class ContagemNotificacoesOut(BaseModel):
+    nao_lidas: int
+
+
+class PreferenciasNotificacaoIn(BaseModel):
+    interna: bool | None = None
+    email: bool | None = None
+    push: bool | None = None
+    problemas_perto: bool | None = None
+    politicos: bool | None = None
+    resumo_semanal: bool | None = None
+    token_fcm: str | None = None
+
+
+class PreferenciasNotificacaoOut(BaseModel):
+    prefs_notificacao: dict
 
 
 @router.get("/me", response_model=UsuarioOut)
@@ -136,3 +177,62 @@ def obter_meu_problema(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporte não encontrado.")
     p, lat, lng = row
     return _to_problema_out(p, lat, lng)
+
+
+@router.get("/me/notificacoes", response_model=list[NotificacaoOut])
+def minhas_notificacoes(
+    apenas_nao_lidas: bool = False,
+    limite: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list:
+    """Lista a central interna de notificacoes do usuario autenticado."""
+    return listar_notificacoes(
+        db,
+        user_id=user.id,
+        apenas_nao_lidas=apenas_nao_lidas,
+        limite=limite,
+        offset=offset,
+    )
+
+
+@router.get("/me/notificacoes/contagem", response_model=ContagemNotificacoesOut)
+def contagem_notificacoes(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ContagemNotificacoesOut:
+    return ContagemNotificacoesOut(nao_lidas=contar_nao_lidas(db, user_id=user.id))
+
+
+@router.patch("/me/notificacoes/{notificacao_id}/lida", response_model=NotificacaoOut)
+def marcar_notificacao_lida(
+    notificacao_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    notificacao = marcar_como_lida(db, user_id=user.id, notificacao_id=notificacao_id)
+    if notificacao is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Notificacao nao encontrada.")
+    db.commit()
+    db.refresh(notificacao)
+    return notificacao
+
+
+@router.get("/me/notificacoes/preferencias", response_model=PreferenciasNotificacaoOut)
+def obter_preferencias_notificacao(user: User = Depends(get_current_user)):
+    return PreferenciasNotificacaoOut(
+        prefs_notificacao=normalizar_prefs_notificacao(user.prefs_notificacao)
+    )
+
+
+@router.patch("/me/notificacoes", response_model=PreferenciasNotificacaoOut)
+def atualizar_preferencias_notificacao(
+    dados: PreferenciasNotificacaoIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    prefs = salvar_prefs_notificacao(user, dados.model_dump(exclude_unset=True))
+    db.commit()
+    db.refresh(user)
+    return PreferenciasNotificacaoOut(prefs_notificacao=prefs)

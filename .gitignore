@@ -25,6 +25,7 @@ __pycache__/
 server/.venv/
 server/.pytest_cache/
 server/uploads/
+server/celerybeat-schedule.*
 .python-version
 firebase-credentials.json
 server/firebase-credentials.json
