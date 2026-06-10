@@ -18,6 +18,7 @@ from app.services.notificacoes import (
 router = APIRouter(prefix="/notificacoes", tags=["notificacoes"])
 
 Severidade = Literal["baixa", "media", "alta", "critica"]
+ImagemUrl = str | None
 
 
 class EventoProblemaNotificacao(BaseModel):
@@ -30,6 +31,7 @@ class EventoProblemaNotificacao(BaseModel):
     raio_metros: int | None = Field(default=None, gt=0)
     severidade: Severidade | None = None
     confianca: float | None = Field(default=None, ge=0, le=1)
+    imagem_url: ImagemUrl = Field(default=None, max_length=2048, pattern=r"^https?://")
     token_fcm: str | None = None
     email: str | None = None
     tokens_fcm: list[str] = Field(default_factory=list)
@@ -41,6 +43,7 @@ class EventoProblemaResolvido(BaseModel):
     rua: str | None = None
     tipo: str | None = None
     responsavel: str | None = None
+    imagem_url: ImagemUrl = Field(default=None, max_length=2048, pattern=r"^https?://")
     token_fcm: str | None = None
     email: str | None = None
     tokens_fcm: list[str] = Field(default_factory=list)
@@ -52,6 +55,7 @@ class EventoPoliticoAtualizado(BaseModel):
     nome_politico: str
     tipo_atualizacao: str
     descricao: str
+    imagem_url: ImagemUrl = Field(default=None, max_length=2048, pattern=r"^https?://")
     token_fcm: str | None = None
     email: str | None = None
     tokens_fcm: list[str] = Field(default_factory=list)
@@ -66,6 +70,7 @@ class EventoNotificarRegiao(BaseModel):
     lat: float | None = Field(default=None, ge=-90, le=90)
     lng: float | None = Field(default=None, ge=-180, le=180)
     raio_metros: int | None = Field(default=None, gt=0)
+    imagem_url: ImagemUrl = Field(default=None, max_length=2048, pattern=r"^https?://")
     tokens_fcm: list[str] = Field(default_factory=list)
     emails: list[str] = Field(default_factory=list)
 

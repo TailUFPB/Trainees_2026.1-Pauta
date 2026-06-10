@@ -86,6 +86,10 @@ PATCH /usuarios/me/notificacoes
 POST  /notificacoes/teste
 ```
 
+Os eventos de notificacao aceitam opcionalmente `imagem_url` com uma URL publica
+HTTP/HTTPS. A URL e retornada em `dados.imagem_url` na central interna e usada
+como imagem da notificacao push quando o dispositivo oferece suporte.
+
 ```bash
 uv run pytest                     # roda os testes (precisa do banco no ar)
 ```

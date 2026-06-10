@@ -92,6 +92,7 @@ def test_worker_cria_notificacao_interna_sem_email_ou_push(client, auth_headers,
             "user_ids": [str(user_id)],
             "titulo": "Teste interno",
             "mensagem": "Funcionou sem canal externo.",
+            "imagem_url": "https://cdn.exemplo.com/notificacao.jpg",
         },
     )
     db.add(evento)
@@ -104,6 +105,7 @@ def test_worker_cria_notificacao_interna_sem_email_ou_push(client, auth_headers,
     assert notificacao.user_id == user_id
     assert notificacao.titulo == "Teste interno"
     assert notificacao.canais["interna"] == "criada"
+    assert notificacao.dados["imagem_url"] == "https://cdn.exemplo.com/notificacao.jpg"
 
 
 def test_worker_nao_duplica_notificacao_ao_reprocessar_evento(

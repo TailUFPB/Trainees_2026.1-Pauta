@@ -109,6 +109,10 @@ def _prefs(destinatario: DestinatarioNotificacao, chave: str) -> bool:
     return canal_habilitado(destinatario.prefs_notificacao, chave)
 
 
+def _imagem_url(payload: dict) -> str | None:
+    return payload.get("imagem_url") or payload.get("foto_url")
+
+
 def _canais_destinatario(destinatario: DestinatarioNotificacao) -> dict:
     return {
         "interna": "criada" if _prefs(destinatario, "interna") else "desativada",
@@ -145,6 +149,7 @@ def _criar_interna_problema_novo(db, destinatario: DestinatarioNotificacao, payl
             "tipo": tipo,
             "rua": rua,
             "distancia_metros": distancia,
+            "imagem_url": _imagem_url(payload),
         },
     )
     return int(criada)
@@ -170,6 +175,7 @@ def _criar_interna_problema_status(db, destinatario: DestinatarioNotificacao, pa
             "tipo": tipo,
             "rua": rua,
             "responsavel": responsavel,
+            "imagem_url": _imagem_url(payload),
         },
     )
     return int(criada)
@@ -193,6 +199,7 @@ def _criar_interna_politico(db, destinatario: DestinatarioNotificacao, payload: 
             "politico_id": payload.get("politico_id"),
             "nome_politico": nome,
             "tipo_atualizacao": tipo_atualizacao,
+            "imagem_url": _imagem_url(payload),
         },
     )
     return int(criada)
@@ -210,7 +217,7 @@ def _criar_interna_teste(db, destinatario: DestinatarioNotificacao, payload: dic
         mensagem=payload.get("mensagem") or "Sua central interna de notificacoes esta funcionando.",
         link_destino="/conta/notificacoes",
         canais=_canais_destinatario(destinatario),
-        dados={"origem": "teste"},
+        dados={"origem": "teste", "imagem_url": _imagem_url(payload)},
     )
     return int(criada)
 
@@ -227,6 +234,7 @@ def _enfileirar_push_multicast(tokens: list[str], payload: dict) -> int:
             tipo=payload.get("tipo") or payload.get("tipo_problema") or "problema",
             distancia_metros=int(payload.get("distancia_metros") or 0),
             problema_id=str(payload["problema_id"]),
+            imagem_url=_imagem_url(payload),
         )
         total += len(lote)
     return total
@@ -248,6 +256,7 @@ def _enfileirar_problema_novo_destinatarios(
                 tipo=payload.get("tipo") or payload.get("tipo_problema") or "problema",
                 distancia_metros=distancia_metros,
                 problema_id=str(payload["problema_id"]),
+                imagem_url=_imagem_url(payload),
             )
             total += 1
         if destinatario.email and _prefs(destinatario, "email"):
@@ -302,6 +311,7 @@ def _processar_problema_status(db, payload: dict) -> int:
             tipo=payload.get("tipo") or "problema",
             responsavel=payload.get("responsavel") or payload.get("resolvido_por") or "responsavel",
             problema_id=str(payload["problema_id"]),
+            imagem_url=_imagem_url(payload),
         )
         total += 1
     for email in emails:
@@ -334,6 +344,7 @@ def _processar_problema_status(db, payload: dict) -> int:
                 or payload.get("resolvido_por")
                 or "responsavel",
                 problema_id=str(payload["problema_id"]),
+                imagem_url=_imagem_url(payload),
             )
             total += 1
         if destinatario.email and _prefs(destinatario, "email"):
@@ -358,6 +369,7 @@ def _processar_politico(db, payload: dict) -> int:
             nome_politico=payload["nome_politico"],
             tipo_atualizacao=payload["tipo_atualizacao"],
             politico_id=str(payload["politico_id"]),
+            imagem_url=_imagem_url(payload),
         )
         total += 1
     for email in emails:
@@ -387,6 +399,7 @@ def _processar_politico(db, payload: dict) -> int:
                 nome_politico=payload["nome_politico"],
                 tipo_atualizacao=payload["tipo_atualizacao"],
                 politico_id=str(payload["politico_id"]),
+                imagem_url=_imagem_url(payload),
             )
             total += 1
         if destinatario.email and _prefs(destinatario, "email"):
@@ -474,13 +487,16 @@ def task_processar_eventos_outbox(limite: int = 50) -> dict:
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=60)
-def task_push_problema_novo(self, token_fcm, rua, tipo, distancia_metros, problema_id):
+def task_push_problema_novo(
+    self, token_fcm, rua, tipo, distancia_metros, problema_id, imagem_url=None
+):
     try:
         enviado = enviar_push(
             token_fcm=token_fcm,
             titulo="Novo problema perto de voce!",
             mensagem=f"{tipo} reportado na {rua}, a {distancia_metros}m de voce.",
             dados={"tipo": "problema_novo", "problema_id": problema_id, "tela": "mapa"},
+            imagem_url=imagem_url,
         )
         if not enviado:
             raise RuntimeError("Push nao enviado.")
@@ -489,7 +505,9 @@ def task_push_problema_novo(self, token_fcm, rua, tipo, distancia_metros, proble
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=60)
-def task_push_problema_resolvido(self, token_fcm, rua, tipo, responsavel, problema_id):
+def task_push_problema_resolvido(
+    self, token_fcm, rua, tipo, responsavel, problema_id, imagem_url=None
+):
     try:
         enviado = enviar_push(
             token_fcm=token_fcm,
@@ -500,6 +518,7 @@ def task_push_problema_resolvido(self, token_fcm, rua, tipo, responsavel, proble
                 "problema_id": problema_id,
                 "tela": "problema_detalhe",
             },
+            imagem_url=imagem_url,
         )
         if not enviado:
             raise RuntimeError("Push nao enviado.")
@@ -508,7 +527,9 @@ def task_push_problema_resolvido(self, token_fcm, rua, tipo, responsavel, proble
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=60)
-def task_push_politico_atualizado(self, token_fcm, nome_politico, tipo_atualizacao, politico_id):
+def task_push_politico_atualizado(
+    self, token_fcm, nome_politico, tipo_atualizacao, politico_id, imagem_url=None
+):
     try:
         enviado = enviar_push(
             token_fcm=token_fcm,
@@ -519,6 +540,7 @@ def task_push_politico_atualizado(self, token_fcm, nome_politico, tipo_atualizac
                 "politico_id": politico_id,
                 "tela": "perfil_politico",
             },
+            imagem_url=imagem_url,
         )
         if not enviado:
             raise RuntimeError("Push nao enviado.")
@@ -527,13 +549,16 @@ def task_push_politico_atualizado(self, token_fcm, nome_politico, tipo_atualizac
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=60)
-def task_push_multiplos(self, tokens, rua, tipo, distancia_metros, problema_id):
+def task_push_multiplos(
+    self, tokens, rua, tipo, distancia_metros, problema_id, imagem_url=None
+):
     try:
         resultado = enviar_push_multiplos(
             tokens=tokens,
             titulo="Novo problema perto de voce!",
             mensagem=f"{tipo} reportado na {rua}, a {distancia_metros}m de voce.",
             dados={"tipo": "problema_novo", "problema_id": problema_id, "tela": "mapa"},
+            imagem_url=imagem_url,
         )
         if resultado["falha"] == len(tokens):
             raise RuntimeError("Nenhum push multicast foi enviado.")

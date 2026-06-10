@@ -14,6 +14,7 @@ def test_problema_criado_registra_evento_no_outbox(client, db):
             "lng": -34.88,
             "severidade": "critica",
             "confianca": 0.91,
+            "imagem_url": "https://cdn.exemplo.com/problema.jpg",
         },
     )
 
@@ -28,6 +29,7 @@ def test_problema_criado_registra_evento_no_outbox(client, db):
     assert evento.prioridade == "alta"
     assert evento.payload["problema_id"] == "prob-1"
     assert evento.payload["lat"] == -7.12
+    assert evento.payload["imagem_url"] == "https://cdn.exemplo.com/problema.jpg"
 
 
 def test_problema_criado_exige_geo_ou_destinatario(client):
@@ -67,6 +69,7 @@ def test_worker_processa_outbox_com_destinatarios_explicitos(db, monkeypatch):
             "distancia_metros": 300,
             "tokens_fcm": ["token-a", "token-b"],
             "emails": ["cidadao@teste.com"],
+            "imagem_url": "https://cdn.exemplo.com/problema.jpg",
         },
     )
     db.add(evento)
@@ -78,4 +81,5 @@ def test_worker_processa_outbox_com_destinatarios_explicitos(db, monkeypatch):
     assert resultado == {"processados": 1, "falhas": 0, "envios_enfileirados": 3}
     assert evento.processado_em is not None
     assert push_calls[0]["tokens"] == ["token-a", "token-b"]
+    assert push_calls[0]["imagem_url"] == "https://cdn.exemplo.com/problema.jpg"
     assert email_calls[0]["email"] == "cidadao@teste.com"
