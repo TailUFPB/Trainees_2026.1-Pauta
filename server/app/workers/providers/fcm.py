@@ -21,12 +21,18 @@ def _inicializar_firebase():
         firebase_admin.initialize_app(credentials.Certificate(caminho))
     return True
 
-def enviar_push(token_fcm: str, titulo: str, mensagem: str, dados: dict | None = None) -> bool:
+def enviar_push(
+    token_fcm: str,
+    titulo: str,
+    mensagem: str,
+    dados: dict | None = None,
+    imagem_url: str | None = None,
+) -> bool:
     if not _inicializar_firebase():
         return False
     try:
         message = messaging.Message(
-            notification=messaging.Notification(title=titulo, body=mensagem),
+            notification=messaging.Notification(title=titulo, body=mensagem, image=imagem_url),
             data=dados or {},
             token=token_fcm,
         )
@@ -41,13 +47,17 @@ def enviar_push(token_fcm: str, titulo: str, mensagem: str, dados: dict | None =
         raise
 
 def enviar_push_multiplos(
-    tokens: list, titulo: str, mensagem: str, dados: dict | None = None
+    tokens: list,
+    titulo: str,
+    mensagem: str,
+    dados: dict | None = None,
+    imagem_url: str | None = None,
 ) -> dict:
     if not _inicializar_firebase():
         return {"sucesso": 0, "falha": len(tokens)}
     try:
         message = messaging.MulticastMessage(
-            notification=messaging.Notification(title=titulo, body=mensagem),
+            notification=messaging.Notification(title=titulo, body=mensagem, image=imagem_url),
             data=dados or {},
             tokens=tokens,
         )
