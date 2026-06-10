@@ -42,6 +42,7 @@ _PUB_JWK: dict[str, Any] = {
 }
 
 _TABELAS = [
+    "notificacoes",
     "eventos_outbox",
     "inscricoes",
     "seguidores_politico",

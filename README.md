@@ -21,8 +21,8 @@ pauta/
 - **Auth**: Supabase Auth (JWT). O backend valida o token; o front usa a sessão do SDK.
 - **Storage de fotos**: Supabase Storage (com fallback local em dev).
 - **Notificações**: o backend **produz eventos** na tabela `eventos_outbox`. O
-  Notification Service em Python/Celery consome de lá, dispara push/email e marca
-  os eventos como processados.
+  Notification Service em Python/Celery consome de lá, cria notificacoes internas
+  para o usuario e, quando configurado, dispara push/email.
 
 ## Subir o ambiente
 
@@ -74,6 +74,17 @@ uv run celery -A app.workers.celery_app worker --beat --loglevel=info
 
 Para push real, deixe `server/credenciais_firebase.json` apenas localmente ou defina
 `FIREBASE_CREDENTIALS_PATH`. Para email real, configure `RESEND_API_KEY` e `EMAIL_FROM`.
+
+A central interna funciona sem Resend/FCM. Endpoints principais:
+
+```bash
+GET   /usuarios/me/notificacoes
+GET   /usuarios/me/notificacoes/contagem
+PATCH /usuarios/me/notificacoes/{id}/lida
+GET   /usuarios/me/notificacoes/preferencias
+PATCH /usuarios/me/notificacoes
+POST  /notificacoes/teste
+```
 
 ```bash
 uv run pytest                     # roda os testes (precisa do banco no ar)
