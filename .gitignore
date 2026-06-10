@@ -22,9 +22,10 @@ client/.next/
 # python / backend
 __pycache__/
 *.py[cod]
-server/.venv/
-server/.pytest_cache/
-server/uploads/
+back/.venv/
+back/uploads/
+scrapers/.venv/
+.ipynb_checkpoints/
 .python-version
 
 # production
@@ -45,6 +46,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+.venv
 
 # vercel
 .vercel
@@ -52,3 +54,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
