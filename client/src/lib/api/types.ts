@@ -63,3 +63,26 @@ export interface Politico {
   url_perfil: string | null;
   cluster_id: number | null;
 }
+
+export interface Notificacao {
+  id: string;
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  link_destino: string | null;
+  lida: boolean;
+  canais: Record<string, string>;
+  dados: Record<string, unknown>;
+  created_at: string;
+  lida_em: string | null;
+}
+
+export interface PreferenciasNotificacao {
+  interna: boolean;
+  email: boolean;
+  push: boolean;
+  problemas_perto: boolean;
+  politicos: boolean;
+  resumo_semanal: boolean;
+  token_fcm?: string;
+}
