@@ -22,6 +22,7 @@ client/.next/
 # python / backend
 __pycache__/
 *.py[cod]
+/.venv/
 server/.venv/
 server/.pytest_cache/
 server/uploads/
