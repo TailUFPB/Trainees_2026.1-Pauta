@@ -56,7 +56,7 @@ docker compose up -d --build      # Postgres + PostGIS + pgvector na porta 5432
 
 ```bash
 cd server
-cp .env.example .env              # ajuste SUPABASE_* para usar Auth/Storage reais
+cp .env.example .env              # ajuste SUPABASE_* e AUTOR_* para usar Auth/Storage reais
 uv sync
 uv run alembic upgrade head       # cria extensões + tabelas
 uv run uvicorn app.main:app --reload --port 8000
