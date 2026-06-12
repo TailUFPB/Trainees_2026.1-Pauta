@@ -165,7 +165,7 @@ def criar_problema(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> ProblemaOut:
-    """Reporta um problema: valida a foto, classifica via LLM (stub), grava com
+    """Reporta um problema: valida a foto, classifica via LLM, grava com
     geometria PostGIS e produz o evento `problema.criado` no outbox.
 
     Quando `anonimo=true`, autor_cifrado e autor_lookup ficam NULL — ninguém

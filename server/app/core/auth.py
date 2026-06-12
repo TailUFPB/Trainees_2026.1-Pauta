@@ -12,6 +12,7 @@ import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -90,8 +91,16 @@ def get_current_user(
         # nome_publico default = parte local do e-mail (usuário pode personalizar depois).
         user = User(id=user_id, nome_publico=_nome_publico_de_email(email))
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        try:
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            # Requests concorrentes ou callbacks repetidos podem tentar inserir o mesmo
+            # usuário ao mesmo tempo. Se já existir, reaproveita o registro persistido.
+            db.rollback()
+            user = db.get(User, user_id)
+            if user is None:
+                raise
     elif user.nome_publico is None:
         # Backfill lazy: usuários criados antes do nome_publico existir ganham um
         # default na primeira autenticação após esta mudança.
