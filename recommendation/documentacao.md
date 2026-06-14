@@ -37,32 +37,33 @@ ranking de candidatos recomendados
 recommendation/
 │
 ├── data/
-│   ├── df_nlp_final.csv       # dataset principal (propostas + contexto do vereador)
+│   ├── df_nlp_filtrado.csv    # dataset principal (propostas + contexto do vereador)
 │   └── df_perfil.csv          # dados de apresentação para UI
 │
 ├── src/
-│   ├── embeddings.py          # geração e salvamento dos embeddings
-│   ├── autoencoder.py         # arquitetura da rede neural
-│   ├── train.py               # treinamento do autoencoder
-│   ├── clustering.py          # clusterização e elbow method
-│   ├── index.py               # construção do índice FAISS
-│   ├── documentation.md       # documentação do pipeline
-│   └── recommend.py           # função principal de recomendação
+│   ├── embeddings.py ✅       # geração e salvamento dos embeddings
+│   ├── autoencoder.py ✅      # arquitetura da rede neural
+│   ├── train.py ✅            # treinamento do autoencoder
+│   ├── clustering.py          # clusterização e elbow method (a ser criado)
+│   ├── index.py               # construção do índice FAISS (a ser criado)
+│   ├── workflow.md ✅         # fluxo do pipeline
+│   ├── recommend.py           # função principal de recomendação (a ser criado)
+│   │
+│   └── notebooks/
+│       ├── 01_embeddings.ipynb ✅  # exploração e validação dos embeddings
+│       ├── 02_autoencoder.ipynb ✅ # treinamento e avaliação do autoencoder
+│       ├── 03_clustering.ipynb (a ser criado) # elbow method e visualização dos clusters
+│       └── 04_recomendacao.ipynb (a ser criado) # demonstração do sistema
 │
 ├── models/
-│   ├── autoencoder.pt         # pesos do modelo treinado
-│   ├── embeddings.npy         # matriz de embeddings
-│   ├── faiss_index.bin        # índice de busca vetorial
-│   └── clusters.csv           # vereadores com cluster atribuído
-│
-├── notebooks/
-│   ├── 01_embeddings.ipynb    # exploração e validação dos embeddings
-│   ├── 02_autoencoder.ipynb   # treinamento e avaliação do autoencoder
-│   ├── 03_clustering.ipynb    # elbow method e visualização dos clusters
-│   └── 04_recomendacao.ipynb  # demonstração do sistema
+│   ├── autoencoder.pt ✅      # pesos do modelo treinado
+│   ├── embeddings.npy ✅      # matriz de embeddings
+│   ├── latent.npy ✅          # representações latentes comprimidas
+│   ├── faiss_index.bin        # índice de busca vetorial (a ser criado)
+│   └── clusters.csv           # vereadores com cluster atribuído (a ser criado)
 │
 ├── .env
-└── requirements.txt
+└── requirements.txt ✅
 ```
 
 ---
@@ -119,7 +120,7 @@ print(resultados)
 
 ## Dados
 
-Os dados de entrada (`df_nlp_final.csv` e `df_perfil.csv`) são gerados pelo
+Os dados de entrada (`df_nlp_filtrado.csv` e `df_perfil.csv`) são gerados pelo
 pipeline de pré-processamento e NLP — consulte o notebook de pré-processamento
 para detalhes sobre a coleta, limpeza e transformação dos dados.
 

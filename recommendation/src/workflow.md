@@ -13,17 +13,15 @@ Para a geração dos embeddings, foi carregado o modelo `neuralmind/bert-base-po
 
 ### Autoencoder
 
-Para que fossem gerados os embeddings no autoencoder, que consistem em matrizes com menor dimensão (com intuito de economizar memória e tempo de processamento), primeiro foi necessário gerar os embeddings (etapa anterior do fluxo de execução) e depois agregá-los por vereador (também parte da etapa anterior do fluxo de execução). 
+Para reduzir a dimensionalidade dos perfis dos vereadores de 768 para 64 dimensões latentes, foi implementada e treinada uma rede neural do tipo Autoencoder. Esse gargalo geométrico filtra ruídos residuais e otimiza o custo computacional (memória e tempo de processamento) para as etapas de recomendação e busca semântica.
 
-#### Pipeline de execução da geração dos embeddings no autoencoder:
+#### Pipeline de execução e treinamento do Autoencoder:
 
-
-1. Criação do Dataset (`EmbeddingsDataset`): os embeddings salvos em `.npy` são encapsulados em um `Dataset` do PyTorch, convertendo o array NumPy para tensores `float32`. Isso permite iterar sobre os dados em lotes durante o treinamento.
-2. Carregamento dos dados (`carregar_embeddings`): o arquivo `embeddings.npy` é carregado do disco e empacotado em um `DataLoader` com `batch_size=16` e `shuffle=True`, pronto para alimentar o loop de treinamento.
-3. Arquitetura da rede (`Autoencoder`): a classe herda de `nn.Module` e define duas sub-redes:
-   - **Encoder**: comprime a entrada de 768 dimensões para 256 (camada linear + ReLU) e depois para 64 (espaço latente).
-   - **Decoder**: reconstrói a partir do espaço latente de 64 para 256 (camada linear + ReLU) e depois para 768 (dimensão original).
-4. Forward pass (`forward`): recebe um tensor de entrada, passa pelo encoder para obter a representação latente, e depois pelo decoder para reconstruir a entrada. Retorna a reconstrução completa — durante o treino, a loss compara a entrada original com a reconstrução.
-5. Codificação (`encode`): retorna apenas a representação latente (saída do encoder), sem reconstruir. É o método usado após o treinamento para obter os vetores comprimidos de cada vereador.
-6. Extração das representações latentes (`extrair_latente`): função utilitária que, dado um modelo treinado e os embeddings originais, executa o encoder em modo de avaliação (sem gradientes) e retorna as representações no espaço latente como array NumPy de dimensão `(n_vereadores, 64)`.
-
+1. **Criação do Dataset (`EmbeddingsDataset`)**: Os embeddings agregados (`embeddings.npy`) são encapsulados em uma classe customizada do PyTorch, convertendo os arrays NumPy para tensores do tipo `float32` prontos para o fluxo de deep learning.
+2. **Carregamento dos dados (`carregar_embeddings`)**: Configuração do `DataLoader` utilizando um tamanho de lote de 16 (`batch_size=16`) e embaralhamento dos dados (`shuffle=True`) para alimentar o loop de otimização de forma homogênea.
+3. **Arquitetura da rede (`Autoencoder`)**: Estrutura simétrica dividida em duas sub-redes principais:
+   - **Encoder**: Reduz as 768 dimensões originais para 256 (camada linear + ativação ReLU) e finalmente para as 64 dimensões do espaço latente.
+   - **Decoder**: Recebe o gargalo de 64 dimensões, expande para 256 (camada linear + ativação ReLU) e reconstrói as 768 dimensões originais do BERT.
+4. **Loop de Treinamento (`treinar`)**: Execução do loop por 200 épocas utilizando o otimizador **Adam** (com taxa de aprendizado `lr=0.001`) e a função de perda de Erro Quadrático Médio (**MSELoss**). O critério avalia a capacidade do Decoder de reconstruir perfeitamente a entrada após a compressão.
+5. **Salvamento dos Pesos (`salvar_modelo`)**: Exportação do dicionário de pesos sintonizados (`state_dict`) da rede para o arquivo `autoencoder.pt`.
+6. **Extração das Representações Latentes (`salvar_latente`)**: O modelo é colocado em modo de avaliação (`model.eval()`). Os embeddings originais passam exclusivamente pelo **Encoder** congelado para extrair a matriz comprimida final, que é salva em disco como `latent.npy` com a dimensão exata de `(94, 64)`.
