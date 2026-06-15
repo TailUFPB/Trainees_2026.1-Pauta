@@ -35,7 +35,7 @@ export default async function DashboardPage() {
         <StatCard
           label="Minhas publicações"
           valor={stats.minhas_publicacoes}
-          href="/conta/feed"
+          href="/feed"
         />
         <StatCard label="Resolvidos" valor={stats.resolvidos} />
       </section>
@@ -46,10 +46,10 @@ export default async function DashboardPage() {
         </h2>
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild variant="primary">
-            <Link href="/conta/feed">Ver feed</Link>
+            <Link href="/reportar">Reportar problema</Link>
           </Button>
           <Button asChild variant="secondary">
-            <Link href="/reportar">Reportar problema</Link>
+            <Link href="/feed">Ver feed</Link>
           </Button>
         </div>
       </section>

@@ -1,19 +1,15 @@
 "use client";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
+import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/primitives/Button";
 import { Container } from "@/components/primitives/Container";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useLoginModal } from "@/components/auth/LoginModalProvider";
 import { useSession } from "@/lib/hooks/useSession";
 import { createClient } from "@/lib/supabase/client";
+import { NAV_CONTA, NAV_PRINCIPAL } from "@/lib/nav";
 import { MobileNav } from "./MobileNav";
-
-const NAV = [
-  { href: "/mapa", label: "Mapa" },
-  { href: "/reportar", label: "Reportar" },
-  { href: "/recomendacoes", label: "Candidatos" },
-] as const;
 
 interface Props {
   initialUserEmail: string | null;
@@ -35,13 +31,13 @@ export function HeaderClient({ initialUserEmail }: Props) {
       <Container className="flex h-16 items-center gap-6">
         <Link
           href="/"
-          className="font-display text-xl font-bold tracking-tight text-text"
+          className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent"
           aria-label="Pauta — página inicial"
         >
-          Pauta
+          <Logo />
         </Link>
         <nav className="hidden gap-1 md:flex" aria-label="Navegação principal">
-          {NAV.map((item) => (
+          {NAV_PRINCIPAL.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -73,30 +69,16 @@ export function HeaderClient({ initialUserEmail }: Props) {
                   sideOffset={8}
                   className="z-50 w-56 rounded-md border border-border bg-surface p-1.5 shadow-[var(--shadow-2)]"
                 >
-                  <DropdownMenu.Item asChild>
-                    <Link
-                      href="/conta/reportes"
-                      className="block rounded-sm px-3 py-2 text-sm text-text outline-none hover:bg-bg data-[highlighted]:bg-bg"
-                    >
-                      Meus Reportes
-                    </Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item asChild>
-                    <Link
-                      href="/conta/notificacoes"
-                      className="block rounded-sm px-3 py-2 text-sm text-text outline-none hover:bg-bg data-[highlighted]:bg-bg"
-                    >
-                      Notificações
-                    </Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item asChild>
-                    <Link
-                      href="/recomendacoes"
-                      className="block rounded-sm px-3 py-2 text-sm text-text outline-none hover:bg-bg data-[highlighted]:bg-bg"
-                    >
-                      Recomendações
-                    </Link>
-                  </DropdownMenu.Item>
+                  {NAV_CONTA.map((item) => (
+                    <DropdownMenu.Item key={item.href} asChild>
+                      <Link
+                        href={item.href}
+                        className="block rounded-sm px-3 py-2 text-sm text-text outline-none hover:bg-bg data-[highlighted]:bg-bg"
+                      >
+                        {item.label}
+                      </Link>
+                    </DropdownMenu.Item>
+                  ))}
                   <DropdownMenu.Separator className="my-1 h-px bg-border" />
                   <DropdownMenu.Item
                     onSelect={handleSignOut}
