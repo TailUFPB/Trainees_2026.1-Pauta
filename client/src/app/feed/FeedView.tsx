@@ -64,7 +64,9 @@ export function FeedView({ inicial, podePublicar }: Props) {
       {itens.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center">
           <p className="text-text-muted">
-            Nada por aqui ainda. Seja o primeiro a publicar.
+            {podePublicar
+              ? "Nada por aqui ainda. Seja o primeiro a publicar."
+              : "Nada por aqui ainda."}
           </p>
         </div>
       ) : (
