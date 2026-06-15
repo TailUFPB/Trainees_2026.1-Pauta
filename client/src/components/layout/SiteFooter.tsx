@@ -36,7 +36,7 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link href="/recomendacoes" className="text-text hover:text-accent">
+              <Link href="/candidatos/recomendacoes" className="text-text hover:text-accent">
                 Recomendações
               </Link>
             </li>

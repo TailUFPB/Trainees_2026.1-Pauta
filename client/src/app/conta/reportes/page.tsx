@@ -16,7 +16,7 @@ export default async function MeusReportesPage() {
       <Container size="wide">
         <Eyebrow>Sua conta</Eyebrow>
         <Heading level={1} size="h1" className="mt-2">
-          Meus Reportes
+          Meus reportes
         </Heading>
       </Container>
       <MeusReportesView initial={initial} />

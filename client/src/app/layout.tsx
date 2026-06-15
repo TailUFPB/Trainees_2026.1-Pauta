@@ -3,6 +3,8 @@ import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { LoginModalProvider } from "@/components/auth/LoginModalProvider";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { getServerUser } from "@/lib/auth/getServerSession";
+import { AppShell } from "@/components/layout/AppShell";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -23,7 +25,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pauta — transparência política para a Paraíba",
+  title: {
+    default: "Pauta",
+    template: "%s · Pauta",
+  },
   description:
     "Mapeie problemas de infraestrutura em João Pessoa, Bayeux, Santa Rita e Campina Grande. Descubra quais vereadores defendem suas pautas.",
 };
@@ -40,6 +45,7 @@ const noFlashThemeScript = `
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const user = await getServerUser();
   return (
     <html
       lang="pt-BR"
@@ -54,11 +60,17 @@ export default async function RootLayout({
           Pular pro conteúdo principal
         </a>
         <LoginModalProvider>
-          <SiteHeader />
-          <main id="main-content" className="flex-1">
-            {children}
-          </main>
-          <SiteFooter />
+          {user ? (
+            <AppShell email={user.email ?? null}>{children}</AppShell>
+          ) : (
+            <>
+              <SiteHeader />
+              <main id="main-content" className="flex-1">
+                {children}
+              </main>
+              <SiteFooter />
+            </>
+          )}
         </LoginModalProvider>
       </body>
     </html>

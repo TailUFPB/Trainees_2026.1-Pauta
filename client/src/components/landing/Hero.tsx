@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, MapPin } from "lucide-react";
+import { ArrowRight, MapPin, Newspaper } from "lucide-react";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { Button } from "@/components/primitives/Button";
 import { Container } from "@/components/primitives/Container";
@@ -42,6 +42,11 @@ export function Hero() {
                 <Button size="lg" variant="secondary" asChild>
                   <Link href="/mapa">
                     <MapPin className="h-4 w-4" /> Ver o mapa da Paraíba
+                  </Link>
+                </Button>
+                <Button size="lg" variant="ghost" asChild>
+                  <Link href="/feed">
+                    <Newspaper className="h-4 w-4" /> Ver o feed
                   </Link>
                 </Button>
               </div>

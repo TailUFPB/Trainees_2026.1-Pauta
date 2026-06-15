@@ -2,6 +2,7 @@
 
 import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap } from "leaflet";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { CircleMarker, MapContainer, Popup, TileLayer, useMapEvents } from "react-leaflet";
 import { api } from "@/lib/api/client";
@@ -104,6 +105,12 @@ export function MapaProblemas() {
               <br />
               <em>Status: {p.status}</em>
               {p.precisa_revisao && <div>⚠️ aguardando revisão</div>}
+              <Link
+                href={`/problemas/${p.id}`}
+                className="mt-2 inline-block font-medium text-accent underline"
+              >
+                Ver detalhe
+              </Link>
             </Popup>
           </CircleMarker>
         ))}
