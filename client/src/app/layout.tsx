@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { LoginModalProvider } from "@/components/auth/LoginModalProvider";
+import { SessionProvider } from "@/components/auth/SessionProvider";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { getServerUser } from "@/lib/auth/getServerSession";
@@ -59,19 +60,23 @@ export default async function RootLayout({
         <a href="#main-content" className="skip-link">
           Pular pro conteúdo principal
         </a>
-        <LoginModalProvider>
-          {user ? (
-            <AppShell email={user.email ?? null}>{children}</AppShell>
-          ) : (
-            <>
-              <SiteHeader />
-              <main id="main-content" className="flex-1">
-                {children}
-              </main>
-              <SiteFooter />
-            </>
-          )}
-        </LoginModalProvider>
+        <SessionProvider
+          initialUser={user ? { id: user.id, email: user.email ?? null } : null}
+        >
+          <LoginModalProvider>
+            {user ? (
+              <AppShell email={user.email ?? null}>{children}</AppShell>
+            ) : (
+              <>
+                <SiteHeader />
+                <main id="main-content" className="flex-1">
+                  {children}
+                </main>
+                <SiteFooter />
+              </>
+            )}
+          </LoginModalProvider>
+        </SessionProvider>
       </body>
     </html>
   );
