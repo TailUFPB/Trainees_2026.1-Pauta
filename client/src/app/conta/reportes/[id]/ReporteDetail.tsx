@@ -18,8 +18,7 @@ const MiniMapa = dynamic(() => import("./MiniMapa").then((m) => m.MiniMapa), {
 });
 
 // Tom visual do badge de status. Reaproveita o mesmo mapeamento usado em
-// `ReporteCard` (inclusive os status que o enum TS ainda não exporta — ver
-// migrations 0006/0007: `arquivado` e `cancelado`).
+// `ReporteCard`, cobrindo todos os 5 status possíveis (ver migrations 0006/0007).
 const STATUS_TONE: Record<string, "neutral" | "accent" | "success" | "danger"> = {
   aberto: "accent",
   em_andamento: "neutral",

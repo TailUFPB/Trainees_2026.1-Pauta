@@ -5,9 +5,10 @@ Liga o app ao pipeline offline (recommendation/) por DUAS funções:
 1. `gerar_embedding(texto)` — projeta o texto de pautas do cidadão no MESMO espaço 768d
    em que os perfis dos políticos foram gerados: BERT português (normalizado L2) →
    subtrai o centróide do corpus → re-normaliza L2. É o espelho de
-   `recommendation/src/embeddings.projetar_no_espaco`; um teste de paridade garante que
-   os dois caminhos produzem o mesmo vetor (cosine > 0.99). Modelo e centróide são
-   carregados uma única vez (lru_cache) e aquecidos no startup (ver main.lifespan).
+   `recommendation/src/embeddings.projetar_no_espaco` (mesma transformação); manter
+   esta implementação sincronizada com o pipeline é um invariante manual. Modelo e
+   centróide são carregados uma única vez (lru_cache) e aquecidos no startup (ver
+   main.lifespan).
 2. `top_politicos_por_similaridade(db, vetor, limite)` — busca de cosseno no pgvector
    (`<=>`, índice HNSW). Roda dentro do Postgres; só depende dos embeddings dos políticos
    estarem populados (ver app/cli/seed_vetores.py).
