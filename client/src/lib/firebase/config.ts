@@ -1,3 +1,4 @@
+"use client";
 // Configuração do Firebase Web (Cloud Messaging). Todos os valores são públicos
 // (chaves NEXT_PUBLIC_*) e precisam apontar para o MESMO projeto Firebase usado
 // pelo backend (server/credenciais_firebase.json).

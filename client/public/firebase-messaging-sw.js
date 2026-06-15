@@ -25,6 +25,8 @@ function telaParaUrl(dados) {
   switch (dados && dados.tela) {
     case "mapa":
       return "/mapa";
+    case "problema_detalhe":
+      return dados.problema_id ? "/conta/reportes/" + dados.problema_id : "/mapa";
     case "perfil_politico":
       return "/candidatos";
     default:
@@ -37,7 +39,7 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(titulo, {
     body: payload.notification && payload.notification.body,
     icon: "/favicon.ico",
-    data: { url: telaParaUrl(payload.data), ...payload.data },
+    data: { ...payload.data, url: telaParaUrl(payload.data) },
   });
 });
 

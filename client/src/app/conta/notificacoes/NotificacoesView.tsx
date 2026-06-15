@@ -107,11 +107,13 @@ export function NotificacoesView({ initial, initialPrefs }: Props) {
           setError(PUSH_ERROR_MESSAGES[resultado.motivo] ?? PUSH_ERROR_MESSAGES.erro);
           return;
         }
-        setNotice("Notificações push ativadas neste dispositivo.");
       }
 
       const result = await api.atualizarPreferenciasNotificacao({ [key]: next });
       setPrefs(result.prefs_notificacao);
+      if (key === "push" && next) {
+        setNotice("Notificações push ativadas neste dispositivo.");
+      }
     } catch {
       setError("Não foi possível salvar a preferência.");
     } finally {

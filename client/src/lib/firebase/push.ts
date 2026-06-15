@@ -21,6 +21,8 @@ function telaParaUrl(dados: Record<string, unknown> | undefined): string {
   switch (dados?.tela) {
     case "mapa":
       return "/mapa";
+    case "problema_detalhe":
+      return dados?.problema_id ? `/conta/reportes/${dados.problema_id}` : "/mapa";
     case "perfil_politico":
       return "/candidatos";
     default:
@@ -92,7 +94,7 @@ export async function iniciarOuvinteForeground(): Promise<() => void> {
       });
       n.onclick = () => {
         window.focus();
-        window.location.assign(url);
+        if (window.location.pathname !== url) window.location.assign(url);
         n.close();
       };
     });
