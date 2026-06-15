@@ -112,7 +112,7 @@ def definir_interesses(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> UsuarioOut:
-    """Gera (stub) o embedding dos interesses do cidadão para a recomendação."""
+    """Gera e persiste o vetor de interesses (embedding SBERT projetado) do cidadão para uso na recomendação."""
     user.interesses_vetor = recomendacao.gerar_embedding(dados.texto)
     db.commit()
     db.refresh(user)
