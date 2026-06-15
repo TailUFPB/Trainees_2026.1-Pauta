@@ -2,14 +2,16 @@
 // Mantenha em sincronia com o backend — fonte da verdade é o /openapi.json.
 
 export type TipoProblema =
-  | "buraco"
+  | "asfalto"
   | "alagamento"
-  | "entulho"
-  | "obstrucao_vegetacao"
-  | "sinalizacao_defeituosa"
   | "iluminacao"
-  | "calcada_irregular"
-  | "outro";
+  | "lixo"
+  | "arborizacao"
+  | "sinalizacao"
+  | "calcada"
+  | "esgoto"
+  | "outros"
+  | "nenhum";
 
 export type Severidade = "baixa" | "media" | "alta" | "critica";
 export type StatusProblema = "aberto" | "em_andamento" | "resolvido";

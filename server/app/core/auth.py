@@ -12,6 +12,7 @@ import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -83,8 +84,15 @@ def _sincronizar_usuario(db: Session, user_id: UUID, email: str | None) -> User:
             nome_publico=_nome_publico_de_email(email),
         )
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        try:
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            # Requests concorrentes podem tentar criar o mesmo espelho local.
+            db.rollback()
+            user = db.get(User, user_id)
+            if user is None:
+                raise
         return user
 
     alterado = False
