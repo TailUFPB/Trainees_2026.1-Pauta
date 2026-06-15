@@ -30,7 +30,7 @@ export function ReporteCard({ p }: { p: Problema }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium capitalize text-text">
-              {(p.tipo_problema ?? "outro").replace(/_/g, " ")}
+              {(p.tipo_problema ?? "outros").replace(/_/g, " ")}
             </span>
             <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>
               {STATUS_LABEL[p.status] ?? p.status}

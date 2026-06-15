@@ -88,7 +88,6 @@ export default function ReportarPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     className="hidden"
                     onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
                   />
@@ -122,7 +121,7 @@ export default function ReportarPage() {
                 type="text"
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
-                placeholder="Ex: buraco fundo na esquina da padaria"
+                placeholder="Ex: asfalto danificado na esquina da padaria"
               />
             </label>
 
@@ -150,7 +149,7 @@ export default function ReportarPage() {
           <Card className="mt-10">
             <Eyebrow tone="muted">Resultado</Eyebrow>
             <Heading level={2} size="h3" className="mt-2 capitalize">
-              {(result.tipo_problema ?? "outro").replace(/_/g, " ")}
+              {(result.tipo_problema ?? "outros").replace(/_/g, " ")}
             </Heading>
             <div className="mt-3 flex flex-wrap gap-2">
               <Badge tone="accent">Severidade: {result.severidade ?? "—"}</Badge>

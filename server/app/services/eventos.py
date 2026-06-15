@@ -1,4 +1,4 @@
-"""Seam de produção de eventos (fronteira com o Notification Service).
+"""Fronteira de produção de eventos com o Notification Service.
 
 O backend é apenas o PRODUTOR. Ele grava eventos numa tabela de outbox; o consumidor
 (Notification Service — Node/BullMQ ou Python/Celery, decisão futura do time) lê os
@@ -19,6 +19,9 @@ TipoEvento = Literal[
     "problema.criado",
     "problema.status_alterado",
     "politico.status_alterado",
+    "politico.atualizado",
+    "usuario.atualizado",
+    "notificacao.teste",
     "publicacao.criada",
 ]
 Prioridade = Literal["alta", "media", "baixa"]

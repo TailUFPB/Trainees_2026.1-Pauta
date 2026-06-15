@@ -2,8 +2,10 @@
 
 from app.models.evento import EventoOutbox
 from app.models.inscricao import Inscricao, SeguidorPolitico
+from app.models.notificacao import Notificacao
 from app.models.politico import Politico
 from app.models.problema import Problema
+from app.models.publicacao import Publicacao
 from app.models.user import User
 
 __all__ = [
@@ -13,4 +15,6 @@ __all__ = [
     "Inscricao",
     "SeguidorPolitico",
     "EventoOutbox",
+    "Notificacao",
+    "Publicacao",
 ]

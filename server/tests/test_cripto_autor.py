@@ -1,7 +1,6 @@
 """Testa cifra reversível do autor + lookup HMAC."""
 from uuid import uuid4
 
-import pytest
 from sqlalchemy.orm import Session
 
 from app.core.cripto_autor import (

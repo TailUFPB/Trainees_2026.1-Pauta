@@ -188,6 +188,10 @@ server-env: ## Cria server/.env a partir do .env.example (idempotente)
 server-dev: ## Sobe o server FastAPI em modo dev (porta $(SERVER_PORT))
 	@cd server && uv run uvicorn app.main:app --reload --port $(SERVER_PORT)
 
+.PHONY: server-worker
+server-worker: ## Sobe o worker Celery de notificacoes com beat
+	@cd server && uv run celery -A app.workers.celery_app worker --beat --loglevel=info
+
 .PHONY: server-test
 server-test: ## Roda os testes do backend (precisa do banco no ar)
 	@cd server && uv run pytest
