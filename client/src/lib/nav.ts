@@ -9,11 +9,18 @@ export interface NavItem {
   exact?: boolean;
 }
 
-/** Navegação principal pública — idêntica em desktop e mobile. */
-export const NAV_PRINCIPAL: readonly NavItem[] = [
+/** Top bar do visitante deslogado — apenas destinos de leitura. */
+export const NAV_PUBLICO: readonly NavItem[] = [
+  { href: "/feed", label: "Feed" },
+  { href: "/mapa", label: "Mapa" },
+  { href: "/candidatos", label: "Candidatos" },
+];
+
+/** Sidebar do app (usuário logado) — destinos primários, incl. ações. */
+export const NAV_APP: readonly NavItem[] = [
+  { href: "/feed", label: "Feed" },
   { href: "/mapa", label: "Mapa" },
   { href: "/reportar", label: "Reportar" },
-  { href: "/feed", label: "Feed" },
   { href: "/candidatos", label: "Candidatos" },
 ];
 
