@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/primitives/Button";
 import { Input } from "@/components/primitives/Input";
 import { Modal } from "@/components/primitives/Modal";
-import { createClient } from "@/lib/supabase/client";
+import { signInWithEmail, signInWithGoogle } from "@/app/auth/actions";
 
 type Status =
   | { kind: "idle" }
@@ -22,26 +22,18 @@ export function LoginModal({ open, onOpenChange }: Props) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
-  const supabase = createClient();
-
   const handleGoogle = async () => {
     setStatus({ kind: "loading-oauth" });
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) setStatus({ kind: "error", message: error.message });
+    const res = await signInWithGoogle();
+    if (res?.error) setStatus({ kind: "error", message: res.error });
   };
 
   const handleMagic = async (e: FormEvent) => {
     e.preventDefault();
     setStatus({ kind: "loading-magic" });
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) setStatus({ kind: "error", message: error.message });
-    else setStatus({ kind: "success-magic", email });
+    const res = await signInWithEmail(email);
+    if (res.ok) setStatus({ kind: "success-magic", email });
+    else setStatus({ kind: "error", message: res.error });
   };
 
   const reset = () => setStatus({ kind: "idle" });

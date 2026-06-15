@@ -12,6 +12,8 @@ const ALLOWED_PREFIXES = new Set([
   "recomendacoes",
   "politicos",
   "usuarios",
+  "feed",
+  "publicacoes",
 ]);
 
 // Cabeçalhos hop-by-hop não devem ser repassados entre conexões distintas.
