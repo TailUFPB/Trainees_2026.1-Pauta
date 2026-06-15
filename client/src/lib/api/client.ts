@@ -4,6 +4,7 @@ import type {
   Politico,
   PreferenciasNotificacao,
   Problema,
+  ProblemaPublico,
   Recomendacao,
 } from "./types";
 
@@ -24,6 +25,15 @@ async function handle<T>(resp: Response): Promise<T> {
     throw new Error(`API ${resp.status}: ${detail}`);
   }
   return resp.json() as Promise<T>;
+}
+
+// Para endpoints sem corpo relevante (ações idempotentes): valida o status sem
+// tentar parsear JSON, que pode vir vazio (204) e quebrar resp.json().
+async function handleVoid(resp: Response): Promise<void> {
+  if (!resp.ok) {
+    const detail = await resp.text();
+    throw new Error(`API ${resp.status}: ${detail}`);
+  }
 }
 
 export const api = {
@@ -83,6 +93,46 @@ export const api = {
     const offset = opts?.offset ?? 0;
     return handle(
       await fetch(`${API_URL}/politicos?limite=${limite}&offset=${offset}`),
+    );
+  },
+
+  // Seguir vereador: passa a receber alertas de `politico.atualizado`.
+  // Idempotente no backend (constraint única). Requer sessão.
+  async seguirPolitico(id: string): Promise<void> {
+    await handleVoid(
+      await fetch(`${API_URL}/politicos/${id}/seguir`, {
+        method: "POST",
+        headers: await authHeaders(),
+      }),
+    );
+  },
+
+  // Detalhe público de um problema do mapa (sem descrição/PII). Sem auth.
+  async problemaPublicoPorId(id: string): Promise<ProblemaPublico> {
+    return handle(await fetch(`${API_URL}/problemas/${id}`));
+  },
+
+  // Inscrever-se em um problema: recebe alertas de mudança de status. Requer sessão.
+  async inscreverProblema(id: string): Promise<void> {
+    await handleVoid(
+      await fetch(`${API_URL}/problemas/${id}/inscrever`, {
+        method: "POST",
+        headers: await authHeaders(),
+      }),
+    );
+  },
+
+  // Define a localização base do usuário (alertas de proximidade). Requer sessão.
+  async definirLocalizacao(lat: number, lng: number): Promise<void> {
+    await handleVoid(
+      await fetch(`${API_URL}/usuarios/me/localizacao`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
+        body: JSON.stringify({ lat, lng }),
+      }),
     );
   },
 

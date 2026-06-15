@@ -4,12 +4,7 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/primitives/Button";
-
-const NAV = [
-  { href: "/mapa", label: "Mapa" },
-  { href: "/reportar", label: "Reportar" },
-  { href: "/recomendacoes", label: "Candidatos" },
-] as const;
+import { NAV_CONTA, NAV_PRINCIPAL } from "@/lib/nav";
 
 interface Props {
   email: string | null;
@@ -43,7 +38,7 @@ export function MobileNav({ email, onSignIn, onSignOut }: Props) {
             </Dialog.Close>
           </div>
           <nav className="mt-8 flex flex-col gap-1" aria-label="Navegação mobile">
-            {NAV.map((item) => (
+            {NAV_PRINCIPAL.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -58,27 +53,16 @@ export function MobileNav({ email, onSignIn, onSignOut }: Props) {
             {email ? (
               <div className="flex flex-col gap-3">
                 <p className="truncate text-sm text-text-muted">{email}</p>
-                <Link
-                  href="/conta/reportes"
-                  onClick={() => setOpen(false)}
-                  className="rounded-md px-3 py-3 text-base font-medium text-text hover:bg-surface"
-                >
-                  Meus Reportes
-                </Link>
-                <Link
-                  href="/recomendacoes"
-                  onClick={() => setOpen(false)}
-                  className="rounded-md px-3 py-3 text-base font-medium text-text hover:bg-surface"
-                >
-                  Recomendações
-                </Link>
-                <Link
-                  href="/conta/notificacoes"
-                  onClick={() => setOpen(false)}
-                  className="rounded-md px-3 py-3 text-base font-medium text-text hover:bg-surface"
-                >
-                  Notificações
-                </Link>
+                {NAV_CONTA.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className="rounded-md px-3 py-3 text-base font-medium text-text hover:bg-surface"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
                 <Button
                   variant="secondary"
                   onClick={() => {

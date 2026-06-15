@@ -23,7 +23,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pauta — transparência política para a Paraíba",
+  title: {
+    default: "Pauta",
+    template: "%s · Pauta",
+  },
   description:
     "Mapeie problemas de infraestrutura em João Pessoa, Bayeux, Santa Rita e Campina Grande. Descubra quais vereadores defendem suas pautas.",
 };

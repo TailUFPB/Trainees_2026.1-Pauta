@@ -49,9 +49,9 @@ export async function CandidatesTeaser() {
               </p>
             </FadeUp>
             <FadeUp delay={0.15}>
-              <AuthGate redirectTo="/recomendacoes">
+              <AuthGate redirectTo="/candidatos/recomendacoes">
                 <Button size="lg" variant="secondary" asChild>
-                  <Link href="/recomendacoes">
+                  <Link href="/candidatos/recomendacoes">
                     Ver minhas recomendações <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
