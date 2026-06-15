@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""
     supabase_storage_bucket: str = "problemas"
 
+    # Cloudflare Workers AI (LLM de visão).
+    cloudflare_account_id: str = ""
+    cloudflare_api_token: str = ""
+    cloudflare_ai_model: str = "@cf/google/gemma-4-26b-a4b-it"
+
     # Chave simétrica do pgp_sym_encrypt para autor_cifrado (32+ bytes).
     # Será obrigatória após a Task 4 (Fatia 2); por ora aceita default vazio
     # pra não quebrar ambientes em transição. Gere com: secrets.token_urlsafe(32).

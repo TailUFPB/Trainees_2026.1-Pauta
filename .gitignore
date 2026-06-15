@@ -22,11 +22,19 @@ client/.next/
 # python / backend
 __pycache__/
 *.py[cod]
+/.venv/
+server/.venv/
+server/.pytest_cache/
+server/uploads/
+server/celerybeat-schedule.*
 back/.venv/
 back/uploads/
 scrapers/.venv/
 .ipynb_checkpoints/
 .python-version
+firebase-credentials.json
+server/firebase-credentials.json
+server/credenciais_firebase.json
 
 # production
 /build
@@ -54,7 +62,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
 
 # Validação local (Playwright / screenshots) — não versionar
 .playwright-mcp/

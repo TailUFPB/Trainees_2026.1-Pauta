@@ -5,14 +5,16 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 TipoProblema = Literal[
-    "buraco",
+    "asfalto",
     "alagamento",
-    "entulho",
-    "obstrucao_vegetacao",
-    "sinalizacao_defeituosa",
     "iluminacao",
-    "calcada_irregular",
-    "outro",
+    "lixo",
+    "arborizacao",
+    "sinalizacao",
+    "calcada",
+    "esgoto",
+    "outros",
+    "nenhum",
 ]
 Severidade = Literal["baixa", "media", "alta", "critica"]
 StatusProblema = Literal["aberto", "em_andamento", "resolvido", "arquivado", "cancelado"]

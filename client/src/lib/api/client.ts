@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Politico, Problema, Recomendacao } from "./types";
+import type {
+  Notificacao,
+  Politico,
+  PreferenciasNotificacao,
+  Problema,
+  Recomendacao,
+} from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -107,6 +113,64 @@ export const api = {
           "Content-Type": "application/json",
           ...(await authHeaders()),
         },
+        body: JSON.stringify(body),
+      }),
+    );
+  },
+
+  async notificacoes(opts?: {
+    apenasNaoLidas?: boolean;
+    limite?: number;
+    offset?: number;
+  }): Promise<Notificacao[]> {
+    const qs = new URLSearchParams();
+    if (opts?.apenasNaoLidas) qs.set("apenas_nao_lidas", "true");
+    if (opts?.limite != null) qs.set("limite", String(opts.limite));
+    if (opts?.offset != null) qs.set("offset", String(opts.offset));
+    return handle(
+      await fetch(`${API_URL}/usuarios/me/notificacoes?${qs}`, {
+        headers: await authHeaders(),
+        cache: "no-store",
+      }),
+    );
+  },
+
+  async contagemNotificacoes(): Promise<{ nao_lidas: number }> {
+    return handle(
+      await fetch(`${API_URL}/usuarios/me/notificacoes/contagem`, {
+        headers: await authHeaders(),
+        cache: "no-store",
+      }),
+    );
+  },
+
+  async marcarNotificacaoLida(id: string): Promise<Notificacao> {
+    return handle(
+      await fetch(`${API_URL}/usuarios/me/notificacoes/${id}/lida`, {
+        method: "PATCH",
+        headers: await authHeaders(),
+      }),
+    );
+  },
+
+  async preferenciasNotificacao(): Promise<{
+    prefs_notificacao: PreferenciasNotificacao;
+  }> {
+    return handle(
+      await fetch(`${API_URL}/usuarios/me/notificacoes/preferencias`, {
+        headers: await authHeaders(),
+        cache: "no-store",
+      }),
+    );
+  },
+
+  async atualizarPreferenciasNotificacao(
+    body: Partial<PreferenciasNotificacao>,
+  ): Promise<{ prefs_notificacao: PreferenciasNotificacao }> {
+    return handle(
+      await fetch(`${API_URL}/usuarios/me/notificacoes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(body),
       }),
     );

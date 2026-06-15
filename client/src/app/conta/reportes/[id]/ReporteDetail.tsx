@@ -63,7 +63,7 @@ export function ReporteDetail({ p: inicial }: { p: Problema }) {
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
       <header className="flex flex-wrap items-center gap-3">
         <Heading level={1} size="h2" className="capitalize">
-          {(p.tipo_problema ?? "outro").replace(/_/g, " ")}
+          {(p.tipo_problema ?? "outros").replace(/_/g, " ")}
         </Heading>
         <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>
           {STATUS_LABEL[p.status] ?? p.status}
