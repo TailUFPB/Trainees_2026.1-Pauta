@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/client";
 import type {
   Notificacao,
   Politico,
@@ -8,16 +7,9 @@ import type {
   Recomendacao,
 } from "./types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-// Anexa o access token do Supabase ao header Authorization, quando há sessão.
-async function authHeaders(): Promise<Record<string, string>> {
-  const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  return session ? { Authorization: `Bearer ${session.access_token}` } : {};
-}
+// Mesma origem: todas as chamadas autenticadas passam pelo proxy server-side,
+// que anexa o Bearer token a partir do cookie httpOnly. O browser nunca lê o token.
+const API_URL = "/api/backend";
 
 async function handle<T>(resp: Response): Promise<T> {
   if (!resp.ok) {
@@ -60,16 +52,13 @@ export const api = {
     return handle(
       await fetch(`${API_URL}/problemas`, {
         method: "POST",
-        headers: await authHeaders(),
         body: form,
       }),
     );
   },
 
   async recomendacoes(): Promise<Recomendacao> {
-    return handle(
-      await fetch(`${API_URL}/recomendacoes`, { headers: await authHeaders() }),
-    );
+    return handle(await fetch(`${API_URL}/recomendacoes`));
   },
 
   async gerarRecomendacoes(texto: string): Promise<Recomendacao> {
@@ -78,7 +67,6 @@ export const api = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(await authHeaders()),
         },
         body: JSON.stringify({ texto }),
       }),
@@ -102,7 +90,6 @@ export const api = {
     await handleVoid(
       await fetch(`${API_URL}/politicos/${id}/seguir`, {
         method: "POST",
-        headers: await authHeaders(),
       }),
     );
   },
@@ -117,7 +104,6 @@ export const api = {
     await handleVoid(
       await fetch(`${API_URL}/problemas/${id}/inscrever`, {
         method: "POST",
-        headers: await authHeaders(),
       }),
     );
   },
@@ -129,7 +115,6 @@ export const api = {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...(await authHeaders()),
         },
         body: JSON.stringify({ lat, lng }),
       }),
@@ -146,9 +131,7 @@ export const api = {
     if (opts?.offset != null) qs.set("offset", String(opts.offset));
     if (opts?.status) for (const s of opts.status) qs.append("status", s);
     return handle(
-      await fetch(`${API_URL}/usuarios/me/problemas?${qs}`, {
-        headers: await authHeaders(),
-      }),
+      await fetch(`${API_URL}/usuarios/me/problemas?${qs}`),
     );
   },
 
@@ -161,7 +144,6 @@ export const api = {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          ...(await authHeaders()),
         },
         body: JSON.stringify(body),
       }),
@@ -179,7 +161,6 @@ export const api = {
     if (opts?.offset != null) qs.set("offset", String(opts.offset));
     return handle(
       await fetch(`${API_URL}/usuarios/me/notificacoes?${qs}`, {
-        headers: await authHeaders(),
         cache: "no-store",
       }),
     );
@@ -188,7 +169,6 @@ export const api = {
   async contagemNotificacoes(): Promise<{ nao_lidas: number }> {
     return handle(
       await fetch(`${API_URL}/usuarios/me/notificacoes/contagem`, {
-        headers: await authHeaders(),
         cache: "no-store",
       }),
     );
@@ -198,7 +178,6 @@ export const api = {
     return handle(
       await fetch(`${API_URL}/usuarios/me/notificacoes/${id}/lida`, {
         method: "PATCH",
-        headers: await authHeaders(),
       }),
     );
   },
@@ -208,7 +187,6 @@ export const api = {
   }> {
     return handle(
       await fetch(`${API_URL}/usuarios/me/notificacoes/preferencias`, {
-        headers: await authHeaders(),
         cache: "no-store",
       }),
     );
@@ -220,7 +198,7 @@ export const api = {
     return handle(
       await fetch(`${API_URL}/usuarios/me/notificacoes`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       }),
     );
