@@ -3,6 +3,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
 import { Button } from "@/components/primitives/Button";
 import { Container } from "@/components/primitives/Container";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useLoginModal } from "@/components/auth/LoginModalProvider";
 import { useSession } from "@/lib/hooks/useSession";
 import { createClient } from "@/lib/supabase/client";
@@ -52,8 +53,10 @@ export function HeaderClient({ initialUserEmail }: Props) {
         </nav>
         <div className="ml-auto hidden items-center gap-2 md:flex">
           {email ? (
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
                 <button
                   className="inline-flex h-9 items-center gap-2 rounded-pill border border-border px-3 text-sm text-text transition-colors hover:border-text"
                   aria-label="Menu da conta"
@@ -63,8 +66,8 @@ export function HeaderClient({ initialUserEmail }: Props) {
                   </span>
                   <span className="max-w-[140px] truncate">{email}</span>
                 </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
                 <DropdownMenu.Content
                   align="end"
                   sideOffset={8}
@@ -76,6 +79,14 @@ export function HeaderClient({ initialUserEmail }: Props) {
                       className="block rounded-sm px-3 py-2 text-sm text-text outline-none hover:bg-bg data-[highlighted]:bg-bg"
                     >
                       Meus Reportes
+                    </Link>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
+                    <Link
+                      href="/conta/notificacoes"
+                      className="block rounded-sm px-3 py-2 text-sm text-text outline-none hover:bg-bg data-[highlighted]:bg-bg"
+                    >
+                      Notificações
                     </Link>
                   </DropdownMenu.Item>
                   <DropdownMenu.Item asChild>
@@ -94,8 +105,9 @@ export function HeaderClient({ initialUserEmail }: Props) {
                     Sair
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
+            </div>
           ) : (
             <Button variant="ghost" size="sm" onClick={() => open()}>
               Entrar

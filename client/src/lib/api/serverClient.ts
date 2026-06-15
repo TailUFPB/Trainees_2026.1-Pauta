@@ -1,5 +1,5 @@
 import { getServerSession } from "@/lib/auth/getServerSession";
-import type { Problema } from "./types";
+import type { Notificacao, PreferenciasNotificacao, Problema } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -41,5 +41,27 @@ export const apiServer = {
         cache: "no-store",
       }),
     );
+  },
+
+  async notificacoes(opts?: { limite?: number; offset?: number }): Promise<Notificacao[]> {
+    const qs = new URLSearchParams();
+    if (opts?.limite != null) qs.set("limite", String(opts.limite));
+    if (opts?.offset != null) qs.set("offset", String(opts.offset));
+    return handle(
+      await fetch(`${API_URL}/usuarios/me/notificacoes?${qs}`, {
+        headers: await serverAuthHeaders(),
+        cache: "no-store",
+      }),
+    );
+  },
+
+  async preferenciasNotificacao(): Promise<PreferenciasNotificacao> {
+    const response = await handle<{ prefs_notificacao: PreferenciasNotificacao }>(
+      await fetch(`${API_URL}/usuarios/me/notificacoes/preferencias`, {
+        headers: await serverAuthHeaders(),
+        cache: "no-store",
+      }),
+    );
+    return response.prefs_notificacao;
   },
 };

@@ -1,5 +1,4 @@
 """POST /publicacoes + GET /usuarios/me/publicacoes."""
-from sqlalchemy import select
 
 
 def test_criar_publicacao_publica(client, auth_headers) -> None:

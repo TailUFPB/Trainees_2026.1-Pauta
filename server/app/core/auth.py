@@ -74,6 +74,42 @@ def _nome_publico_de_email(email: str | None) -> str | None:
     return email.split("@", 1)[0] or None
 
 
+def _sincronizar_usuario(db: Session, user_id: UUID, email: str | None) -> User:
+    """Cria/atualiza o espelho local usado pelo feed e pelas notificações."""
+    user = db.get(User, user_id)
+    if user is None:
+        user = User(
+            id=user_id,
+            email=email,
+            nome_publico=_nome_publico_de_email(email),
+        )
+        db.add(user)
+        try:
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            # Requests concorrentes podem tentar criar o mesmo espelho local.
+            db.rollback()
+            user = db.get(User, user_id)
+            if user is None:
+                raise
+        return user
+
+    alterado = False
+    if email and user.email != email:
+        user.email = email
+        alterado = True
+    if user.nome_publico is None:
+        novo_nome = _nome_publico_de_email(email)
+        if novo_nome:
+            user.nome_publico = novo_nome
+            alterado = True
+    if alterado:
+        db.commit()
+        db.refresh(user)
+    return user
+
+
 def get_current_user(
     credenciais: HTTPAuthorizationCredentials = Depends(bearer),
     db: Session = Depends(get_db),
@@ -85,31 +121,7 @@ def get_current_user(
 
     user_id = UUID(sub)
     email = claims.get("email")
-    user = db.get(User, user_id)
-    if user is None:
-        # Primeiro acesso: cria o registro local espelhando o auth.users do Supabase.
-        # nome_publico default = parte local do e-mail (usuário pode personalizar depois).
-        user = User(id=user_id, nome_publico=_nome_publico_de_email(email))
-        db.add(user)
-        try:
-            db.commit()
-            db.refresh(user)
-        except IntegrityError:
-            # Requests concorrentes ou callbacks repetidos podem tentar inserir o mesmo
-            # usuário ao mesmo tempo. Se já existir, reaproveita o registro persistido.
-            db.rollback()
-            user = db.get(User, user_id)
-            if user is None:
-                raise
-    elif user.nome_publico is None:
-        # Backfill lazy: usuários criados antes do nome_publico existir ganham um
-        # default na primeira autenticação após esta mudança.
-        novo_nome = _nome_publico_de_email(email)
-        if novo_nome:
-            user.nome_publico = novo_nome
-            db.commit()
-            db.refresh(user)
-    return user
+    return _sincronizar_usuario(db, user_id, email)
 
 
 def get_current_user_optional(
@@ -130,16 +142,4 @@ def get_current_user_optional(
         return None
     user_id = UUID(sub)
     email = claims.get("email")
-    user = db.get(User, user_id)
-    if user is None:
-        user = User(id=user_id, nome_publico=_nome_publico_de_email(email))
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    elif user.nome_publico is None:
-        novo_nome = _nome_publico_de_email(email)
-        if novo_nome:
-            user.nome_publico = novo_nome
-            db.commit()
-            db.refresh(user)
-    return user
+    return _sincronizar_usuario(db, user_id, email)

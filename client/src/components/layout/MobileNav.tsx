@@ -72,6 +72,13 @@ export function MobileNav({ email, onSignIn, onSignOut }: Props) {
                 >
                   Recomendações
                 </Link>
+                <Link
+                  href="/conta/notificacoes"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-3 py-3 text-base font-medium text-text hover:bg-surface"
+                >
+                  Notificações
+                </Link>
                 <Button
                   variant="secondary"
                   onClick={() => {
