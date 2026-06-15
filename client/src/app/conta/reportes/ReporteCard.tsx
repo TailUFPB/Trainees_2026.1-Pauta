@@ -4,8 +4,7 @@ import { Card } from "@/components/primitives/Card";
 import type { Problema } from "@/lib/api/types";
 
 // Mapeia status do problema para o tom visual do Badge.
-// Mantemos chaves além dos status hoje aceitos no enum (`aberto | em_andamento | resolvido`)
-// porque o backend pode passar a emitir `arquivado` / `cancelado` (ver migrations 0006/0007).
+// Cobre todos os 5 status possíveis (ver migrations 0006/0007).
 const STATUS_TONE: Record<string, "neutral" | "accent" | "success" | "danger"> = {
   aberto: "accent",
   em_andamento: "neutral",
