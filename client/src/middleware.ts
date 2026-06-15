@@ -8,6 +8,10 @@ import { NextRequest, NextResponse } from "next/server";
 const ROTAS_PUBLICAS: RegExp[] = [
   /^\/$/,                         // landing
   /^\/auth\//,                    // /auth/callback etc.
+  /^\/feed(\/|$)/,                // feed público
+  /^\/mapa(\/|$)/,                // mapa público
+  /^\/candidatos(\/|$)/,          // candidatos público
+  /^\/problemas(\/|$)/,           // detalhe público de problema
 ];
 
 function ehPublica(pathname: string): boolean {
