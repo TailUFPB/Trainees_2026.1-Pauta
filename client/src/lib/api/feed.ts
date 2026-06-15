@@ -1,5 +1,3 @@
-import { createClient } from "@/lib/supabase/client";
-
 // Item do feed unificado retornado por GET /feed.
 // Reflete o discriminated union do backend (`tipo` separa publicação e problema).
 export type ItemFeed =
@@ -27,11 +25,12 @@ export type ItemFeed =
       created_at: string;
     };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = "/api/backend";
 
 /**
  * Client-side: usado pela paginação ("Carregar mais") no FeedView.
- * Lê a sessão atual do SDK do Supabase no browser.
+ * Vai pelo proxy server-side, que anexa o Bearer token a partir do cookie
+ * httpOnly. O browser nunca lê o token.
  *
  * A versão server vive em `feed.server.ts` pra evitar arrastar `next/headers`
  * pro bundle client quando este módulo é importado por componentes "use client".
@@ -39,18 +38,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export async function buscarFeedClient(
   opts: { cursor?: string; limite?: number } = {},
 ): Promise<ItemFeed[]> {
-  const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
   const params = new URLSearchParams();
   if (opts.cursor) params.set("cursor", opts.cursor);
   if (opts.limite) params.set("limite", String(opts.limite));
-  const resp = await fetch(`${API_URL}/feed?${params.toString()}`, {
-    headers: session
-      ? { Authorization: `Bearer ${session.access_token}` }
-      : {},
-  });
+  const resp = await fetch(`${API_URL}/feed?${params.toString()}`);
   if (!resp.ok) return [];
   const data = (await resp.json()) as unknown;
   return Array.isArray(data) ? (data as ItemFeed[]) : [];
