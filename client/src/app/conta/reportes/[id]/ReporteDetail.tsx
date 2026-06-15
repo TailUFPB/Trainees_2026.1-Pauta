@@ -10,30 +10,16 @@ import { Heading } from "@/components/primitives/Heading";
 import { Skeleton } from "@/components/primitives/Skeleton";
 import { api } from "@/lib/api/client";
 import type { Problema } from "@/lib/api/types";
+import { statusLabel, statusTone } from "@/lib/problema-status";
 
 // MiniMapa importado dinamicamente sem SSR — Leaflet só funciona no browser.
-const MiniMapa = dynamic(() => import("./MiniMapa").then((m) => m.MiniMapa), {
-  ssr: false,
-  loading: () => <Skeleton className="h-64 w-full rounded-md" />,
-});
-
-// Tom visual do badge de status. Reaproveita o mesmo mapeamento usado em
-// `ReporteCard`, cobrindo todos os 5 status possíveis (ver migrations 0006/0007).
-const STATUS_TONE: Record<string, "neutral" | "accent" | "success" | "danger"> = {
-  aberto: "accent",
-  em_andamento: "neutral",
-  resolvido: "success",
-  arquivado: "neutral",
-  cancelado: "danger",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  aberto: "Aberto",
-  em_andamento: "Em andamento",
-  resolvido: "Resolvido",
-  arquivado: "Arquivado",
-  cancelado: "Cancelado",
-};
+const MiniMapa = dynamic(
+  () => import("@/components/mapa/MiniMapa").then((m) => m.MiniMapa),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-64 w-full rounded-md" />,
+  },
+);
 
 export function ReporteDetail({ p: inicial }: { p: Problema }) {
   const [p, setP] = useState(inicial);
@@ -64,9 +50,7 @@ export function ReporteDetail({ p: inicial }: { p: Problema }) {
         <Heading level={1} size="h2" className="capitalize">
           {(p.tipo_problema ?? "outros").replace(/_/g, " ")}
         </Heading>
-        <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>
-          {STATUS_LABEL[p.status] ?? p.status}
-        </Badge>
+        <Badge tone={statusTone(p.status)}>{statusLabel(p.status)}</Badge>
         <Badge tone="accent">Severidade: {p.severidade ?? "—"}</Badge>
         <Badge>
           Confiança:{" "}

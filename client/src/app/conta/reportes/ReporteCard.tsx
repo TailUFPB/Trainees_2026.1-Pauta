@@ -2,24 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/primitives/Badge";
 import { Card } from "@/components/primitives/Card";
 import type { Problema } from "@/lib/api/types";
-
-// Mapeia status do problema para o tom visual do Badge.
-// Cobre todos os 5 status possíveis (ver migrations 0006/0007).
-const STATUS_TONE: Record<string, "neutral" | "accent" | "success" | "danger"> = {
-  aberto: "accent",
-  em_andamento: "neutral",
-  resolvido: "success",
-  arquivado: "neutral",
-  cancelado: "danger",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  aberto: "Aberto",
-  em_andamento: "Em andamento",
-  resolvido: "Resolvido",
-  arquivado: "Arquivado",
-  cancelado: "Cancelado",
-};
+import { statusLabel, statusTone } from "@/lib/problema-status";
 
 export function ReporteCard({ p }: { p: Problema }) {
   const data = new Date(p.created_at).toLocaleDateString("pt-BR");
@@ -31,9 +14,7 @@ export function ReporteCard({ p }: { p: Problema }) {
             <span className="text-sm font-medium capitalize text-text">
               {(p.tipo_problema ?? "outros").replace(/_/g, " ")}
             </span>
-            <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>
-              {STATUS_LABEL[p.status] ?? p.status}
-            </Badge>
+            <Badge tone={statusTone(p.status)}>{statusLabel(p.status)}</Badge>
           </div>
           <p className="mt-1 text-xs text-text-muted">{data}</p>
         </div>

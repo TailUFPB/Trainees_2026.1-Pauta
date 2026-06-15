@@ -2,16 +2,21 @@
 
 import { useState } from "react";
 import { PostCard } from "@/components/feed/PostCard";
+import { Button } from "@/components/primitives/Button";
+import { Card } from "@/components/primitives/Card";
+import { useLoginModal } from "@/components/auth/LoginModalProvider";
 import { buscarFeedClient, type ItemFeed } from "@/lib/api/feed";
 import { Composer } from "./Composer";
 
 interface Props {
   inicial: ItemFeed[];
+  podePublicar: boolean;
 }
 
 const PAGINA = 20;
 
-export function FeedView({ inicial }: Props) {
+export function FeedView({ inicial, podePublicar }: Props) {
+  const { open } = useLoginModal();
   const [itens, setItens] = useState<ItemFeed[]>(inicial);
   const [carregando, setCarregando] = useState(false);
   // Se a página inicial veio incompleta, já sabemos que não há mais nada.
@@ -43,12 +48,25 @@ export function FeedView({ inicial }: Props) {
 
   return (
     <>
-      <Composer onPublicada={handleNova} />
+      {podePublicar ? (
+        <Composer onPublicada={handleNova} />
+      ) : (
+        <Card className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-text-muted">
+            Entre para publicar e participar da conversa.
+          </p>
+          <Button size="sm" onClick={() => open("/feed")}>
+            Entrar para publicar
+          </Button>
+        </Card>
+      )}
 
       {itens.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center">
           <p className="text-text-muted">
-            Nada por aqui ainda. Seja o primeiro a publicar.
+            {podePublicar
+              ? "Nada por aqui ainda. Seja o primeiro a publicar."
+              : "Nada por aqui ainda."}
           </p>
         </div>
       ) : (

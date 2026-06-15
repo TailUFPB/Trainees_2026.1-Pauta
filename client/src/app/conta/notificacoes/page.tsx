@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Container } from "@/components/primitives/Container";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { Heading } from "@/components/primitives/Heading";
@@ -6,10 +7,7 @@ import { apiServer } from "@/lib/api/serverClient";
 import { NotificacoesView } from "./NotificacoesView";
 
 export default async function NotificacoesPage() {
-  const [initial, initialPrefs] = await Promise.all([
-    apiServer.notificacoes({ limite: 50, offset: 0 }),
-    apiServer.preferenciasNotificacao(),
-  ]);
+  const initial = await apiServer.notificacoes({ limite: 50, offset: 0 });
 
   return (
     <Section spacing="default">
@@ -19,10 +17,18 @@ export default async function NotificacoesPage() {
           Notificações
         </Heading>
         <p className="mt-3 max-w-2xl text-text-muted">
-          Acompanhe atualizações importantes e controle como deseja recebê-las.
+          Acompanhe atualizações importantes. Para escolher canais e definir sua
+          região,{" "}
+          <Link
+            href="/conta/configuracoes"
+            className="font-medium text-accent hover:underline"
+          >
+            ajuste suas configurações
+          </Link>
+          .
         </p>
       </Container>
-      <NotificacoesView initial={initial} initialPrefs={initialPrefs} />
+      <NotificacoesView initial={initial} />
     </Section>
   );
 }

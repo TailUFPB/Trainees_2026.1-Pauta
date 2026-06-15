@@ -1,4 +1,5 @@
 import { MapPin } from "lucide-react";
+import Link from "next/link";
 import { AnonimoBadge } from "./AnonimoBadge";
 import type { ItemFeed } from "@/lib/api/feed";
 
@@ -91,6 +92,12 @@ function ConteudoProblema({
           loading="lazy"
         />
       )}
+      <Link
+        href={`/problemas/${item.id}`}
+        className="mt-3 inline-block text-sm font-medium text-accent hover:underline"
+      >
+        Ver detalhe do problema
+      </Link>
     </>
   );
 }

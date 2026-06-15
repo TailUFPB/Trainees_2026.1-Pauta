@@ -1,5 +1,10 @@
 import { getServerSession } from "@/lib/auth/getServerSession";
-import type { Notificacao, PreferenciasNotificacao, Problema } from "./types";
+import type {
+  Notificacao,
+  PreferenciasNotificacao,
+  Problema,
+  ProblemaPublico,
+} from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -40,6 +45,13 @@ export const apiServer = {
         headers: await serverAuthHeaders(),
         cache: "no-store",
       }),
+    );
+  },
+
+  // Detalhe público de um problema (sem PII) — usado na página /problemas/[id].
+  async problemaPublicoPorId(id: string): Promise<ProblemaPublico> {
+    return handle(
+      await fetch(`${API_URL}/problemas/${id}`, { cache: "no-store" }),
     );
   },
 
