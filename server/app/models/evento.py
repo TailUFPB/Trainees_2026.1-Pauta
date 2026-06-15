@@ -8,7 +8,15 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 # Tipos de evento produzidos pelo backend e consumidos pelo Notification Service.
-TIPOS_EVENTO = ("problema.criado", "problema.status_alterado", "politico.status_alterado")
+TIPOS_EVENTO = (
+    "problema.criado",
+    "problema.status_alterado",
+    "politico.status_alterado",
+    "politico.atualizado",
+    "usuario.atualizado",
+    "publicacao.criada",
+    "notificacao.teste",
+)
 PRIORIDADES = ("alta", "media", "baixa")
 
 

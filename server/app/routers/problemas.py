@@ -204,6 +204,7 @@ def criar_problema(
             "tipo": classificacao.tipo_problema,
             "severidade": classificacao.severidade,
             "confianca": classificacao.confianca,
+            "imagem_url": foto_url,
             "lat": lat,
             "lng": lng,
         },

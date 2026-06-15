@@ -10,6 +10,7 @@ _TABELAS_COM_RLS = [
     "inscricoes",
     "seguidores_politico",
     "eventos_outbox",
+    "notificacoes",
     "politicos",
 ]
 
