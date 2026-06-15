@@ -48,6 +48,14 @@ const PREFERENCE_OPTIONS: Array<{
   },
 ];
 
+// Mensagens de falha ao ativar push, por motivo retornado por ativarPush().
+const PUSH_ERROR_MESSAGES: Record<string, string> = {
+  "sem-config": "Notificações push ainda não estão configuradas neste ambiente.",
+  "nao-suportado": "Este navegador não suporta notificações push.",
+  "permissao-negada": "Permissão de notificações negada pelo navegador.",
+  erro: "Não foi possível ativar as notificações push.",
+};
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
@@ -96,13 +104,7 @@ export function NotificacoesView({ initial, initialPrefs }: Props) {
       if (key === "push" && next) {
         const resultado = await ativarPush();
         if (!resultado.ok) {
-          const mensagens: Record<string, string> = {
-            "sem-config": "Notificações push ainda não estão configuradas neste ambiente.",
-            "nao-suportado": "Este navegador não suporta notificações push.",
-            "permissao-negada": "Permissão de notificações negada pelo navegador.",
-            erro: "Não foi possível ativar as notificações push.",
-          };
-          setError(mensagens[resultado.motivo] ?? mensagens.erro);
+          setError(PUSH_ERROR_MESSAGES[resultado.motivo] ?? PUSH_ERROR_MESSAGES.erro);
           return;
         }
         setNotice("Notificações push ativadas neste dispositivo.");
