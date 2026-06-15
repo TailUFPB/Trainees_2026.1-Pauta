@@ -30,6 +30,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 LATENT_PATH = BASE_DIR / "models" / "latent.npy"
 
+# semente fixa -> build reprodutível (init dos pesos + shuffle do DataLoader)
+SEED = 42
+
 # treinar -> executa o loop de treinamento do autoencoder
 # o autoencoder é treinado para reconstruir os embeddings originais
 # a loss (MSE) mede o erro entre a entrada e a reconstrução
@@ -44,7 +47,13 @@ def treinar(model: Autoencoder, dataloader, epochs: int = EPOCHS, lr: float = LE
     # otimizador -> Adam
     # atualiza os pesos da rede com base nos gradientes calculados pela loss
     # lr (learning rate) controla o tamanho dos passos de atualização
-    otimizador = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    #
+    # SEM weight_decay (intencional): os vetores-perfil são unitários espalhados em 768
+    # dims, então o sinal por componente é pequeno. Com weight_decay=1e-4 a rede caía na
+    # solução TRIVIAL de reconstruir a média (saída ≈ 0, MSE ≈ 1/768 ≈ 0.0013), COLAPSANDO
+    # o espaço latente (todos os vereadores no mesmo ponto) e inviabilizando a clusterização.
+    # Sem ele a loss cai p/ ~1e-5 e o latente preserva a estrutura temática.
+    otimizador = torch.optim.Adam(model.parameters(), lr=lr)
 
     # histórico de perdas -> armazena a loss média de cada época
     # útil para visualizar a curva de aprendizado e verificar convergência
@@ -138,6 +147,10 @@ def salvar_latente(model: Autoencoder, caminho_embeddings: Path = EMBEDDINGS_PAT
 # 4. salva os pesos do modelo treinado
 # 5. extrai e salva as representações latentes
 if __name__ == "__main__":
+
+    # reprodutibilidade do build (init dos pesos + ordem do shuffle do DataLoader)
+    torch.manual_seed(SEED)
+    np.random.seed(SEED)
 
     # carrega os embeddings
     dataloader = carregar_embeddings()

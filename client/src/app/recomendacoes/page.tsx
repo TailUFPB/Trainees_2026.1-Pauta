@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
-import { Sparkles } from "lucide-react";
+import { FileText, Sparkles } from "lucide-react";
 import { Button } from "@/components/primitives/Button";
 import { Card } from "@/components/primitives/Card";
 import { Container } from "@/components/primitives/Container";
@@ -12,6 +12,19 @@ import { api } from "@/lib/api/client";
 import type { Recomendacao } from "@/lib/api/types";
 import { useSession } from "@/lib/hooks/useSession";
 import { useLoginModal } from "@/components/auth/LoginModalProvider";
+
+function identificadorProposta(
+  tipo: string | null,
+  numero: number | null,
+  ano: number | null,
+) {
+  const referencia = [
+    tipo,
+    numero == null ? null : `nº ${numero}`,
+    ano == null ? null : `de ${ano}`,
+  ].filter(Boolean);
+  return referencia.length > 0 ? referencia.join(" ") : "Proposta legislativa";
+}
 
 export default function RecomendacoesPage() {
   const { user, loading: sessionLoading } = useSession();
@@ -43,8 +56,7 @@ export default function RecomendacoesPage() {
     setLoading(true);
     setError(null);
     try {
-      await api.definirInteresses(texto);
-      const r = await api.recomendacoes();
+      const r = await api.gerarRecomendacoes(texto);
       setData(r);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro.");
@@ -113,29 +125,74 @@ export default function RecomendacoesPage() {
             <Skeleton className="h-20" />
           </div>
         ) : data && data.top_politicos.length > 0 ? (
-          <div className="mt-10 space-y-3">
+          <div className="mt-10 space-y-4">
             <Eyebrow tone="muted">Top matches</Eyebrow>
             {data.top_politicos.map((m, i) => (
-              <Card key={m.id} className="flex items-center gap-4">
-                <div className="grid h-10 w-10 place-items-center rounded-pill bg-accent/10 font-mono text-sm font-semibold text-accent">
-                  {i + 1}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium text-text">{m.nome}</div>
-                  <div className="truncate text-xs text-text-muted">
-                    {m.cargo ?? "Vereador(a)"} ·{" "}
-                    {m.partido ? `${m.partido} · ` : ""}
-                    {m.municipio ?? "PB"}
+              <Card key={m.id} className="overflow-hidden p-0">
+                <div className="flex items-center gap-4 p-5 sm:p-6">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-pill bg-accent/10 font-mono text-sm font-semibold text-accent">
+                    {i + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium text-text">
+                      {m.nome}
+                    </div>
+                    <div className="truncate text-xs text-text-muted">
+                      {m.cargo ?? "Vereador(a)"} ·{" "}
+                      {m.partido ? `${m.partido} · ` : ""}
+                      {m.municipio ?? "PB"}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="font-mono text-lg font-semibold text-text">
+                      {((m.score ?? 0) * 100).toFixed(0)}%
+                    </div>
+                    <div className="text-[10px] uppercase tracking-wider text-text-muted">
+                      afinidade
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-mono text-lg font-semibold text-text">
-                    {((m.score ?? 0) * 100).toFixed(0)}%
+
+                {m.evidencias.length > 0 ? (
+                  <div className="border-t border-border bg-bg/45 px-5 py-5 sm:px-6">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-text">
+                      <Sparkles className="h-4 w-4 text-accent" aria-hidden />
+                      Por que combina
+                    </div>
+                    {m.justificativa ? (
+                      <p className="mt-2 text-sm leading-6 text-text-muted">
+                        {m.justificativa}
+                      </p>
+                    ) : null}
+                    <ol
+                      className="mt-4 space-y-3"
+                      aria-label={`Propostas relacionadas de ${m.nome}`}
+                    >
+                      {m.evidencias.map((evidencia, evidenciaIndex) => (
+                        <li
+                          key={`${evidencia.tipo}-${evidencia.numero}-${evidencia.ano}-${evidenciaIndex}`}
+                          className="grid grid-cols-[2rem_1fr] gap-3"
+                        >
+                          <span className="grid h-8 w-8 place-items-center rounded-md border border-border bg-surface text-text-muted">
+                            <FileText className="h-4 w-4" aria-hidden />
+                          </span>
+                          <div className="min-w-0">
+                            <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-accent">
+                              {identificadorProposta(
+                                evidencia.tipo,
+                                evidencia.numero,
+                                evidencia.ano,
+                              )}
+                            </div>
+                            <p className="mt-1 text-sm leading-6 text-text">
+                              {evidencia.resumo}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
                   </div>
-                  <div className="text-[10px] uppercase tracking-wider text-text-muted">
-                    afinidade
-                  </div>
-                </div>
+                ) : null}
               </Card>
             ))}
           </div>

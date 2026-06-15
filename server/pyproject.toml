@@ -17,6 +17,12 @@ dependencies = [
     "pillow>=11.0",
     "supabase>=2.10",
     "python-multipart>=0.0.12",
+    # Usado por services/recomendacao (projeção do embedding da query + load do centróide).
+    # Leve; o modelo pesado (sentence-transformers/torch) fica no grupo opcional 'embedding'.
+    "numpy>=2.0",
+    # LLM p/ justificativas em tempo real (Groq, API compatível com OpenAI). Sem chave,
+    # o serviço degrada para o texto-base — a dependência é leve (traz httpx).
+    "groq>=0.11",
 ]
 
 [dependency-groups]
@@ -26,10 +32,19 @@ dev = [
     "ruff>=0.8",
     "mypy>=1.13",
 ]
+# Grupo OPCIONAL: necessário só para gerar embeddings de query reais em produção
+# (POST /usuarios/me/interesses). Os testes usam um encoder fake e não precisam disto.
+# Instale com: uv sync --group embedding
+embedding = [
+    "sentence-transformers>=5.5",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "slow: carrega o BERT real (opt-in). Requer 'uv sync --group embedding'; senão pula sozinho.",
+]
 
 [tool.uv]
 package = false

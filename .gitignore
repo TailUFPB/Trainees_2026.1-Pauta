@@ -55,3 +55,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+
+# Validação local (Playwright / screenshots) — não versionar
+.playwright-mcp/
+/recomendacoes-*.png
+
+# Artefatos de ML gerados (regeneráveis via 'make recommendation-build') — não versionar
+recommendation/models/
+server/app/assets/
