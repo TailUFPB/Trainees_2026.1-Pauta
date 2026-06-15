@@ -1,6 +1,6 @@
 // Fonte única da navegação do app. Usada por HeaderClient (desktop) e MobileNav
 // para evitar arrays duplicados que saíam de sincronia. Itens da conta também
-// alimentam o dropdown do header, mantendo rótulos idênticos ao AccountNav.
+// alimentam o AccountNav e o menu de conta do sidebar do app, mantendo rótulos idênticos.
 
 export interface NavItem {
   href: string;
@@ -24,7 +24,7 @@ export const NAV_APP: readonly NavItem[] = [
   { href: "/candidatos", label: "Candidatos" },
 ];
 
-/** Seção da conta — alimenta o AccountNav e o dropdown do header. */
+/** Seção da conta — alimenta o AccountNav e o menu de conta do sidebar do app. */
 export const NAV_CONTA: readonly NavItem[] = [
   { href: "/conta", label: "Visão geral", exact: true },
   { href: "/conta/reportes", label: "Meus reportes" },
