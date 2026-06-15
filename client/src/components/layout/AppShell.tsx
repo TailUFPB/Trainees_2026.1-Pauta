@@ -11,6 +11,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NAV_APP, NAV_CONTA, type NavItem } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/client";
 
+// CONTA sem `exact`: mantém "Minha conta" ativo em todas as sub-rotas (/conta/*).
 const CONTA: NavItem = { href: "/conta", label: "Minha conta" };
 const ITENS: readonly NavItem[] = [...NAV_APP, CONTA];
 
@@ -75,7 +76,7 @@ export function AppShell({
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
-          className="inline-flex h-9 items-center gap-2 rounded-pill border border-border px-3 text-sm text-text transition-colors hover:border-text"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-pill border border-border px-3 text-sm text-text transition-colors hover:border-text"
           aria-label="Menu da conta"
         >
           <span className="grid h-6 w-6 place-items-center rounded-pill bg-accent text-xs font-semibold text-white">
