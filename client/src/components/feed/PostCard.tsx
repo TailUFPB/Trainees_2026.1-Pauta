@@ -76,7 +76,7 @@ function ConteudoProblema({
       <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-text-muted">
         <MapPin aria-hidden className="h-3 w-3" />
         <span>
-          Reporte • {(item.tipo_problema ?? "outro").replace(/_/g, " ")}
+          Reporte • {(item.tipo_problema ?? "outros").replace(/_/g, " ")}
           {item.severidade ? ` • ${item.severidade}` : ""}
         </span>
       </div>

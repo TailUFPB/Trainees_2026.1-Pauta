@@ -57,7 +57,7 @@ docker compose up -d --build      # Postgres + PostGIS + pgvector na porta 5432
 
 ```bash
 cd server
-cp .env.example .env              # ajuste SUPABASE_* para usar Auth/Storage reais
+cp .env.example .env              # ajuste SUPABASE_* e CLOUDFLARE_* para serviços reais
 uv sync
 uv run alembic upgrade head       # cria extensões + tabelas
 uv run uvicorn app.main:app --reload --port 8000
@@ -136,22 +136,24 @@ make clean            # limpa caches (.next, __pycache__, mypy, ruff)
 
 `make help` sempre te lembra do resto.
 
-## O que está pronto (fatia vertical) vs. contrato+stub
+## O que está pronto (fatia vertical) vs. pontos de integração
 
 | Área | Estado |
 |------|--------|
 | Reportar problema + mapa | **End-to-end** (front + back + geo + evento) |
 | Recomendação de candidatos | Contrato + query pgvector prontos; aguarda embeddings |
-| Notificações | Eventos no outbox + consumidor Celery para push/email |
-| LLM de fotos | Interface/stub pronta; classificação real é de outro dono |
+| Notificações | Eventos no outbox + central interna + consumidor Celery para push/email |
+| LLM de fotos | Integrada ao Cloudflare Workers AI (Gemma 4), com fallback local seguro |
 
 ## Pontos de integração para o time (seams)
 
-Tudo o que é IA mora em `server/app/services/` com **assinatura fixa** — preencha o corpo
+Tudo o que é IA mora em `server/app/services/` com **assinatura fixa** — integre por ali
 sem tocar em rotas, banco ou contratos:
 
 - **LLM de fotos** — `services/visao.py::classificar(imagem: bytes) -> ClassificacaoFoto`.
-  Hoje é um stub determinístico; troque pela chamada ao MLLM (ex.: Gemini 2.5 Flash).
+  Usa Cloudflare Workers AI via `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` e
+  `CLOUDFLARE_AI_MODEL` (default: `@cf/google/gemma-4-26b-a4b-it`). Sem credenciais ou
+  em caso de resposta inválida, retorna uma classificação de revisão manual.
 - **Recomendação** — `services/recomendacao.py::gerar_embedding(texto) -> list[float]`
   (stub) e `top_politicos_por_similaridade(...)` (query de cosseno pronta). A dimensão
   do embedding é `EMBEDDING_DIM` (`.env`, default 768) e **deve bater** com o modelo do
