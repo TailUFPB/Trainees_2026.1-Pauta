@@ -16,7 +16,7 @@ export function MobileNav({ onSignIn }: Props) {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
         <button
-          className="ml-auto inline-grid h-10 w-10 place-items-center rounded-md text-text md:hidden"
+          className="ml-auto inline-grid h-11 w-11 place-items-center rounded-md text-text md:hidden"
           aria-label="Abrir menu"
         >
           <Menu className="h-5 w-5" />
@@ -30,7 +30,7 @@ export function MobileNav({ onSignIn }: Props) {
             <span className="font-display text-lg font-bold text-text">Menu</span>
             <Dialog.Close
               aria-label="Fechar"
-              className="grid h-9 w-9 place-items-center rounded-md text-text-muted hover:text-text"
+              className="grid h-11 w-11 place-items-center rounded-md text-text-muted hover:text-text"
             >
               <X className="h-5 w-5" />
             </Dialog.Close>
