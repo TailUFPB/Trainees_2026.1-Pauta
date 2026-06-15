@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -28,8 +28,8 @@ class PoliticoOut(BaseModel):
 
 @router.get("", response_model=list[PoliticoOut])
 def listar_politicos(
-    limite: int = 50,
-    offset: int = 0,
+    limite: int = Query(50, ge=1, le=50),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[PoliticoOut]:
     politicos = db.scalars(
