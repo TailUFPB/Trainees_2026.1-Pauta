@@ -19,13 +19,16 @@ DATA_PATH = BASE_DIR / "data" / "df_nlp_filtrado.csv"
 MODELS_DIR = BASE_DIR / "models"
 OUTPUT_PATH = MODELS_DIR / "embeddings.npy"
 META_PATH = MODELS_DIR / "embeddings_meta.csv"
+CENTROID_PATH = MODELS_DIR / "centroid.npy"
+PROPOSAL_OUTPUT_PATH = MODELS_DIR / "proposal_embeddings.npy"
+PROPOSAL_META_PATH = MODELS_DIR / "proposal_embeddings_meta.csv"
 
 # configurações
 # nome do modelo -> BERT em português
 # coluna com o texto das propostas -> proposta ementa
 # coluna com nome dos vereadores -> vereador
 # tamanho do batch -> 32 por padrão
-MODEL_NAME = "neuralmind/bert-base-portuguese-cased" 
+MODEL_NAME = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"  # SBERT 768d: treinado p/ similaridade semântica (cosseno reflete significado)
 EMENTA_COL = "proposta_ementa_filtrada" 
 VEREADOR_COL = "vereador"
 BATCH_SIZE = 32
@@ -114,6 +117,33 @@ def gerar_embeddings(textos: list[str], modelo: SentenceTransformer) -> np.ndarr
     embeddings = modelo.encode(textos, batch_size=BATCH_SIZE, show_progress_bar=True, convert_to_numpy=True, normalize_embeddings=True,)
     return embeddings
 
+# projetar_no_espaco -> FONTE ÚNICA DE VERDADE do espaço vetorial dos perfis
+#
+# Subtrai o centróide do corpus (direção média compartilhada por todos os perfis) e
+# re-normaliza para norma L2 unitária. TANTO os perfis dos vereadores (agregar_por_vereador)
+# QUANTO a query do cidadão (recommend.embed_query / backend gerar_embedding) DEVEM passar
+# exatamente por esta mesma transformação. Se a query for projetada de forma diferente,
+# ela cai num espaço distinto dos perfis e o ranking de cosseno vira ruído — sem erro
+# explícito. Manter esta função como o único lugar onde a projeção acontece elimina esse
+# drift por construção.
+#
+# Aceita um vetor (D,) OU uma matriz (N, D); retorna no mesmo formato.
+def projetar_no_espaco(vetores: np.ndarray, centroide: np.ndarray) -> np.ndarray:
+    """Projeta vetores BERT no espaço centrado dos perfis (subtrai centróide + L2)."""
+    v = np.asarray(vetores, dtype=np.float32)
+    unidim = v.ndim == 1
+    if unidim:
+        v = v[None, :]
+    # subtrai o centroide do corpus para remover a componente compartilhada
+    # (destaca as diferenças temáticas individuais de cada vereador)
+    v = v - centroide
+    # re-normaliza cada vetor para norma unitária (L2); necessário porque a subtração
+    # do centróide altera as normas (e a média de vetores normalizados já as perde)
+    normas = np.linalg.norm(v, axis=1, keepdims=True)
+    normas = np.maximum(normas, 1e-10)  # evita divisão por zero
+    v = v / normas
+    return v[0] if unidim else v
+
 # agregar_por_vereador -> agrega os embeddings das propostas de cada vereador pela média
 # retorna uma matriz com os embeddings agregados e um dataframe com os metadados
 #
@@ -122,7 +152,7 @@ def gerar_embeddings(textos: list[str], modelo: SentenceTransformer) -> np.ndarr
 #   2. re-normalizar os vetores para norma unitária (L2)
 # sem isso, todos os vetores ficam extremamente próximos (~0.90 de similaridade cosseno)
 # porque compartilham a mesma componente dominante ("texto legislativo genérico")
-def agregar_por_vereador(df: pd.DataFrame, embeddings: np.ndarray) -> tuple[np.ndarray, pd.DataFrame]:
+def agregar_por_vereador(df: pd.DataFrame, embeddings: np.ndarray) -> tuple[np.ndarray, pd.DataFrame, np.ndarray]:
     df = df.copy()
     df["_emb_idx"] = range(len(df))
 
@@ -139,30 +169,84 @@ def agregar_por_vereador(df: pd.DataFrame, embeddings: np.ndarray) -> tuple[np.n
 
     matriz = np.array(vetores, dtype=np.float32)
 
-    # subtrai o centroide do corpus para remover a componente compartilhada
-    # isso destaca as diferenças temáticas individuais de cada vereador
-    centroide = matriz.mean(axis=0)
-    matriz = matriz - centroide
+    # centróide do corpus: média dos vetores-perfil ANTES da subtração/normalização.
+    # PRECISA ser persistido (salvar) — sem ele é impossível projetar a query do cidadão
+    # no mesmo espaço dos perfis. Não é recuperável de embeddings.npy (já normalizado).
+    centroide = matriz.mean(axis=0).astype(np.float32)
 
-    # re-normaliza cada vetor para norma unitária (L2)
-    # necessário porque: (a) a média de vetores normalizados perde a norma unitária
-    #                     (b) a subtração do centroide altera as normas
-    normas = np.linalg.norm(matriz, axis=1, keepdims=True)
-    normas = np.maximum(normas, 1e-10)  # evita divisão por zero
-    matriz = matriz / normas
+    # projeta os perfis no espaço centrado — MESMA transformação aplicada à query
+    matriz = projetar_no_espaco(matriz, centroide)
 
     metadata = pd.DataFrame(vereadores)
     print(f"[agregação] Matriz final: {matriz.shape}  (vereadores × dimensão)")
-    return matriz, metadata
+    return matriz, metadata, centroide
 
 # salvar -> salva a matriz de embeddings e o arquivo de metadados
 # metadados pois serão usados em conjunto com os embeddings para recuperar as informações originais
-def salvar(matriz: np.ndarray, metadata: pd.DataFrame) -> None:
+def preparar_evidencias(
+    df: pd.DataFrame,
+    modelo: SentenceTransformer,
+    centroide: np.ndarray,
+) -> tuple[np.ndarray, pd.DataFrame]:
+    """Embeddings PROJETADOS dos resumos das propostas + metadados (evidências).
+
+    As evidências são embeddadas a partir do RESUMO em linguagem natural (o mesmo texto
+    exibido ao cidadão), e não da ementa em juridiquês — assim a similaridade casa com a
+    query, que também é linguagem natural. Os vetores passam pela MESMA projeção dos perfis
+    (projetar_no_espaco) para viverem no mesmo espaço da query.
+    """
+    metadata = df[
+        [
+            VEREADOR_COL,
+            "municipio",
+            "proposta_tipo",
+            "proposta_numero",
+            "proposta_ano",
+            "resumo_proposta",
+            "proposta_ementa",
+        ]
+    ].copy()
+    metadata["resumo"] = (
+        metadata["resumo_proposta"]
+        .fillna(metadata["proposta_ementa"])
+        .fillna("")
+        .str.strip()
+    )
+    metadata = metadata.rename(
+        columns={
+            VEREADOR_COL: "nome",
+            "proposta_tipo": "tipo",
+            "proposta_numero": "numero",
+            "proposta_ano": "ano",
+        }
+    )[["nome", "municipio", "tipo", "numero", "ano", "resumo"]].reset_index(drop=True)
+
+    bruto = gerar_embeddings(metadata["resumo"].tolist(), modelo)
+    vetores = projetar_no_espaco(bruto, centroide)
+    return vetores.astype(np.float32), metadata
+
+
+def salvar(
+    matriz: np.ndarray,
+    metadata: pd.DataFrame,
+    centroide: np.ndarray,
+    proposal_embeddings: np.ndarray,
+    proposal_metadata: pd.DataFrame,
+) -> None:
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     np.save(OUTPUT_PATH, matriz)
+    np.save(CENTROID_PATH, centroide)
+    np.save(PROPOSAL_OUTPUT_PATH, proposal_embeddings)
     metadata.to_csv(META_PATH, index=False)
+    proposal_metadata.to_csv(PROPOSAL_META_PATH, index=False)
     print(f"[salvo] Embeddings → {OUTPUT_PATH}")
+    print(f"[salvo] Centróide  → {CENTROID_PATH}  (shape {centroide.shape})")
     print(f"[salvo] Metadados  → {META_PATH}")
+    print(
+        f"[salvo] Evidências → {PROPOSAL_OUTPUT_PATH} "
+        f"(shape {proposal_embeddings.shape})"
+    )
+    print(f"[salvo] Metadados de evidências → {PROPOSAL_META_PATH}")
 
 # pipeline principal
 if __name__ == "__main__":
@@ -180,9 +264,20 @@ if __name__ == "__main__":
     embeddings = gerar_embeddings(df[EMENTA_COL].tolist(), modelo)
 
     # agrega por vereador (média dos embeddings das propostas)
-    matriz, metadata = agregar_por_vereador(df, embeddings)
+    matriz, metadata, centroide = agregar_por_vereador(df, embeddings)
+    proposal_embeddings, proposal_metadata = preparar_evidencias(
+        df,
+        modelo,
+        centroide,
+    )
 
-    # salva resultados
-    salvar(matriz, metadata)
+    # salva resultados (inclui o centróide do corpus, necessário p/ embeddar a query)
+    salvar(
+        matriz,
+        metadata,
+        centroide,
+        proposal_embeddings,
+        proposal_metadata,
+    )
 
     print("\nEmbeddings gerados com êxito!")

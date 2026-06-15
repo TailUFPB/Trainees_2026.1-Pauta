@@ -45,6 +45,15 @@ export interface PoliticoMatch {
   resumo_llm: string | null;
   cluster_id: number | null;
   score: number | null;
+  justificativa: string | null;
+  evidencias: EvidenciaProposta[];
+}
+
+export interface EvidenciaProposta {
+  tipo: string | null;
+  numero: number | null;
+  ano: number | null;
+  resumo: string;
 }
 
 export interface Recomendacao {
