@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { ThemeToggle } from "@/components/primitives/ThemeToggle";
 import { NAV_APP, NAV_CONTA, type NavItem } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/client";
 
@@ -159,6 +160,7 @@ export function AppShell({
           </Dialog.Root>
 
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             <NotificationBell />
             {contaMenu}
           </div>
