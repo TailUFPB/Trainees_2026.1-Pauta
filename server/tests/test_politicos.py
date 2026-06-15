@@ -55,3 +55,10 @@ def test_listar_paginacao_disjunta_por_offset(client, db):
 
     assert len(pg1) == 25 and len(pg2) == 25
     assert {p["id"] for p in pg1}.isdisjoint({p["id"] for p in pg2})
+
+
+def test_listar_param_fora_dos_limites_retorna_422(client):
+    # limite/offset fora dos limites devem falhar na validação, não chegar ao DB.
+    assert client.get("/politicos?limite=0").status_code == 422
+    assert client.get("/politicos?limite=1000").status_code == 422
+    assert client.get("/politicos?offset=-1").status_code == 422
