@@ -13,7 +13,7 @@ com role superuser (BYPASSRLS implícito). RLS aqui é defesa em profundidade
 contra acesso via PostgREST.
 
 No DB local (Docker), `auth.uid()` não existe; criamos um stub que retorna
-NULL::uuid. Em produção (Supabase), a função real sobrescreve esse stub.
+NULL::uuid. Em produção (Supabase), preservamos a função nativa existente.
 """
 
 from typing import Sequence, Union
@@ -28,13 +28,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # No Supabase, auth.uid() já existe. No DB local (Docker), criamos um stub
-    # que retorna NULL — policies que dependem dele simplesmente filtram tudo,
-    # o que é seguro (e o backend bypassa RLS de qualquer jeito).
+    # No Supabase, auth.uid() já existe e não pode ser sobrescrita. No DB local
+    # (Docker), criamos um stub que retorna NULL; as policies filtram tudo e o
+    # backend acessa o banco diretamente.
     op.execute("""
         CREATE SCHEMA IF NOT EXISTS auth;
-        CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
-            LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
+        DO $migration$
+        BEGIN
+            IF to_regprocedure('auth.uid()') IS NULL THEN
+                EXECUTE $sql$
+                    CREATE FUNCTION auth.uid() RETURNS uuid
+                        LANGUAGE sql STABLE
+                        AS $function$ SELECT NULL::uuid $function$
+                $sql$;
+            END IF;
+        END
+        $migration$;
     """)
 
     # 1. View pública sem PII
