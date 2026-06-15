@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { LoginModalProvider } from "@/components/auth/LoginModalProvider";
 import { SessionProvider } from "@/components/auth/SessionProvider";
@@ -47,6 +48,7 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await getServerUser();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="pt-BR"
@@ -54,7 +56,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: noFlashThemeScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: noFlashThemeScript }} />
       </head>
       <body className="min-h-full flex flex-col bg-bg text-text" suppressHydrationWarning>
         <a href="#main-content" className="skip-link">

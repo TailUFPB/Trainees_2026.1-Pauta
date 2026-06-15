@@ -19,7 +19,40 @@ function ehPublica(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({ request });
+  // O service worker do Firebase faz importScripts() de domínios externos.
+  // Aplicar a CSP estrita (ou o redirect de auth) aqui quebraria o push.
+  if (request.nextUrl.pathname === "/firebase-messaging-sw.js") {
+    return NextResponse.next();
+  }
+
+  // Nonce por request — Next aplica automaticamente aos seus próprios <script>
+  // desde que a CSP com o nonce esteja também no header da REQUEST encaminhada.
+  const nonce = btoa(crypto.randomUUID());
+  const isProd = process.env.NODE_ENV === "production";
+  const csp = [
+    `default-src 'self'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isProd ? "" : " 'unsafe-eval'"}`,
+    `style-src 'self' 'unsafe-inline'`,
+    `img-src 'self' data: blob: https:`,
+    `font-src 'self' data:`,
+    `connect-src 'self' https://*.googleapis.com`,
+    `worker-src 'self'`,
+    `frame-ancestors 'none'`,
+    `object-src 'none'`,
+    `base-uri 'self'`,
+    `form-action 'self'`,
+    ...(isProd ? [`upgrade-insecure-requests`] : []),
+  ]
+    .join("; ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("content-security-policy", csp);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("content-security-policy", csp);
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
