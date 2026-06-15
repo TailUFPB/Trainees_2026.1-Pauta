@@ -66,7 +66,16 @@ async function proxy(request: Request, ctx: RouteContext): Promise<Response> {
     init.duplex = "half";
   }
 
-  const upstream = await fetch(target, init);
+  let upstream: Response;
+  try {
+    upstream = await fetch(target, init);
+  } catch {
+    // Backend inacessível: não vaza o erro/stack cru ao cliente.
+    return new Response(JSON.stringify({ detail: "backend indisponível" }), {
+      status: 502,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   const responseHeaders = new Headers();
   upstream.headers.forEach((value, key) => {
