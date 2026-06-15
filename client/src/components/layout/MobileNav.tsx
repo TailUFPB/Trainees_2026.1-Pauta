@@ -4,15 +4,13 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/primitives/Button";
-import { NAV_CONTA, NAV_PRINCIPAL } from "@/lib/nav";
+import { NAV_PUBLICO } from "@/lib/nav";
 
 interface Props {
-  email: string | null;
   onSignIn: () => void;
-  onSignOut: () => void;
 }
 
-export function MobileNav({ email, onSignIn, onSignOut }: Props) {
+export function MobileNav({ onSignIn }: Props) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -38,7 +36,7 @@ export function MobileNav({ email, onSignIn, onSignOut }: Props) {
             </Dialog.Close>
           </div>
           <nav className="mt-8 flex flex-col gap-1" aria-label="Navegação mobile">
-            {NAV_PRINCIPAL.map((item) => (
+            {NAV_PUBLICO.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -50,41 +48,16 @@ export function MobileNav({ email, onSignIn, onSignOut }: Props) {
             ))}
           </nav>
           <div className="mt-8 border-t border-border pt-6">
-            {email ? (
-              <div className="flex flex-col gap-3">
-                <p className="truncate text-sm text-text-muted">{email}</p>
-                {NAV_CONTA.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className="rounded-md px-3 py-3 text-base font-medium text-text hover:bg-surface"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setOpen(false);
-                    onSignOut();
-                  }}
-                >
-                  Sair
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setOpen(false);
-                  onSignIn();
-                }}
-                className="w-full"
-              >
-                Entrar
-              </Button>
-            )}
+            <Button
+              variant="primary"
+              onClick={() => {
+                setOpen(false);
+                onSignIn();
+              }}
+              className="w-full"
+            >
+              Entrar
+            </Button>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
