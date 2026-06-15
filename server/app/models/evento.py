@@ -14,6 +14,7 @@ TIPOS_EVENTO = (
     "politico.status_alterado",
     "politico.atualizado",
     "usuario.atualizado",
+    "publicacao.criada",
     "notificacao.teste",
 )
 PRIORIDADES = ("alta", "media", "baixa")

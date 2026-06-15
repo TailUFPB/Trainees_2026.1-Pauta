@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from typing import BinaryIO
 from uuid import UUID
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials
 from geoalchemy2.elements import WKTElement
@@ -14,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import bearer, get_current_user
 from app.core.config import get_settings
-from app.core.hmac_autor import autor_hmac
+from app.core.cripto_autor import decifrar_autor, lookup_autor, payload_autor
 from app.db.session import get_db
 from app.models.inscricao import Inscricao
 from app.models.problema import Problema
@@ -94,7 +95,16 @@ def _prioridade(severidade: Severidade, confianca: float) -> Prioridade:
     return "baixa"
 
 
-def _to_out(p: Problema, lat: float, lng: float) -> ProblemaOut:
+def _autor_nome(db: Session, autor_cifrado: bytes | None, anonimo: bool) -> str | None:
+    """Decifra autor_cifrado, busca users.nome_publico. None se anônimo ou ausente."""
+    if anonimo or autor_cifrado is None:
+        return None
+    uid = decifrar_autor(db, autor_cifrado)
+    user = db.get(User, uid)
+    return user.nome_publico if user else None
+
+
+def _to_out(p: Problema, lat: float, lng: float, autor_nome: str | None) -> ProblemaOut:
     return ProblemaOut(
         id=p.id,
         foto_url=p.foto_url,
@@ -111,12 +121,19 @@ def _to_out(p: Problema, lat: float, lng: float) -> ProblemaOut:
         resolvido_por=p.resolvido_por,
         resolvido_em=p.resolvido_em,
         descricao=p.descricao,
+        autor_nome=autor_nome,
+        anonimo=p.anonimo,
         created_at=p.created_at,
     )
 
 
-def _to_publico(p: Problema, lat: float, lng: float) -> ProblemaPublicoOut:
-    """Projeção pública: oculta `autor_id` e `descricao` livre (potencial PII)."""
+def _to_publico(
+    p: Problema, lat: float, lng: float, autor_nome: str | None
+) -> ProblemaPublicoOut:
+    """Projeção pública: oculta `autor_id` e `descricao` livre (potencial PII).
+
+    `autor_nome` vem decifrado pela query (NULL quando anônimo ou ausente).
+    """
     return ProblemaPublicoOut(
         id=p.id,
         foto_url=p.foto_url,
@@ -132,6 +149,8 @@ def _to_publico(p: Problema, lat: float, lng: float) -> ProblemaPublicoOut:
         status=p.status,
         resolvido_por=p.resolvido_por,
         resolvido_em=p.resolvido_em,
+        autor_nome=autor_nome,
+        anonimo=p.anonimo,
         created_at=p.created_at,
     )
 
@@ -142,19 +161,28 @@ def criar_problema(
     lat: float = Form(..., ge=-90, le=90),
     lng: float = Form(..., ge=-180, le=180),
     descricao: str | None = Form(None),
+    anonimo: bool = Form(False),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> ProblemaOut:
     """Reporta um problema: valida a foto, classifica via LLM (stub), grava com
-    geometria PostGIS e produz o evento `problema.criado` no outbox."""
+    geometria PostGIS e produz o evento `problema.criado` no outbox.
+
+    Quando `anonimo=true`, autor_cifrado e autor_lookup ficam NULL — ninguém
+    recupera identidade, nem com as chaves.
+    """
     conteudo = _ler_upload_limitado(foto.file, settings.max_upload_bytes)
     _validar_imagem(conteudo, foto.content_type or "")
 
     foto_url = storage.salvar_foto(conteudo, foto.content_type or "image/jpeg")
     classificacao = visao.classificar(conteudo)
 
+    cifrado, lookup, eh_anonimo = payload_autor(db, user.id, anonimo=anonimo)
+
     problema = Problema(
-        autor_hmac=autor_hmac(user.id),
+        autor_cifrado=cifrado,
+        autor_lookup=lookup,
+        anonimo=eh_anonimo,
         foto_url=foto_url,
         localizacao=WKTElement(f"POINT({lng} {lat})", srid=4326),
         tipo_problema=classificacao.tipo_problema,
@@ -184,7 +212,8 @@ def criar_problema(
     )
     db.commit()
     db.refresh(problema)
-    return _to_out(problema, lat, lng)
+    autor_nome = _autor_nome(db, problema.autor_cifrado, problema.anonimo)
+    return _to_out(problema, lat, lng, autor_nome)
 
 
 @router.post("/{problema_id}/inscrever", status_code=status.HTTP_204_NO_CONTENT)
@@ -200,6 +229,23 @@ def inscrever(
     db.commit()
 
 
+def _autor_nome_subquery() -> sa.sql.elements.Label:
+    """Expressão SQL que decifra autor_cifrado e retorna users.nome_publico.
+
+    NULL quando anônimo, autor_cifrado é NULL, ou o usuário não está mais na
+    tabela. Usa parâmetro bound `:cifra_key` — chamadores precisam fornecer via
+    `.params(cifra_key=...)`.
+    """
+    return sa.case(
+        (Problema.anonimo.is_(True), sa.literal(None)),
+        (Problema.autor_cifrado.is_(None), sa.literal(None)),
+        else_=sa.text(
+            "(SELECT nome_publico FROM users WHERE id = "
+            "pgp_sym_decrypt(problemas.autor_cifrado, :cifra_key)::uuid)"
+        ),
+    ).label("autor_nome")
+
+
 @router.get("", response_model=list[ProblemaPublicoOut])
 def listar_problemas(
     bbox: str | None = Query(
@@ -213,10 +259,16 @@ def listar_problemas(
     """Lista problemas para o mapa, com filtro espacial por bounding box (índice GIST).
 
     Resposta pública: `autor_id` e `descricao` ficam ocultos (ver ProblemaPublicoOut).
+    O `autor_nome` vem decifrado em lote via subquery — evita N+1 e dispensa Python
+    chamar pgp_sym_decrypt por linha.
     """
     stmt = select(
-        Problema, ST_Y(Problema.localizacao).label("lat"), ST_X(Problema.localizacao).label("lng")
-    )
+        Problema,
+        ST_Y(Problema.localizacao).label("lat"),
+        ST_X(Problema.localizacao).label("lng"),
+        _autor_nome_subquery(),
+    ).params(cifra_key=settings.autor_cifra_key)
+
     if bbox:
         try:
             min_lng, min_lat, max_lng, max_lat = (float(x) for x in bbox.split(","))
@@ -233,7 +285,10 @@ def listar_problemas(
         stmt = stmt.where(Problema.status == status_)
     stmt = stmt.order_by(Problema.created_at.desc()).limit(limite)
 
-    return [_to_publico(p, lat, lng) for p, lat, lng in db.execute(stmt).all()]
+    return [
+        _to_publico(p, lat, lng, autor_nome)
+        for p, lat, lng, autor_nome in db.execute(stmt).all()
+    ]
 
 
 @router.get("/{problema_id}", response_model=ProblemaPublicoOut)
@@ -244,14 +299,19 @@ def obter_problema(problema_id: UUID, db: Session = Depends(get_db)) -> Problema
     GET /usuarios/me/problemas/{id}.
     """
     row = db.execute(
-        select(Problema, ST_Y(Problema.localizacao), ST_X(Problema.localizacao)).where(
-            Problema.id == problema_id
+        select(
+            Problema,
+            ST_Y(Problema.localizacao),
+            ST_X(Problema.localizacao),
+            _autor_nome_subquery(),
         )
+        .where(Problema.id == problema_id)
+        .params(cifra_key=settings.autor_cifra_key)
     ).first()
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Problema não encontrado.")
-    p, lat, lng = row
-    return _to_publico(p, lat, lng)
+    p, lat, lng, autor_nome = row
+    return _to_publico(p, lat, lng, autor_nome)
 
 
 @router.patch("/{problema_id}/status", response_model=ProblemaOut)
@@ -276,10 +336,10 @@ def atualizar_status(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Problema não encontrado.")
     problema, lat, lng = row
 
-    if problema.autor_hmac != autor_hmac(user.id):
+    if problema.anonimo or problema.autor_lookup != lookup_autor(user.id):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "Só o autor pode mudar o status do próprio reporte.",
+            "Só o autor (não-anônimo) pode mudar o status do próprio reporte.",
         )
 
     transicao = (problema.status, dados.status)
@@ -308,4 +368,5 @@ def atualizar_status(
     )
     db.commit()
     db.refresh(problema)
-    return _to_out(problema, lat, lng)
+    autor_nome = _autor_nome(db, problema.autor_cifrado, problema.anonimo)
+    return _to_out(problema, lat, lng, autor_nome)
