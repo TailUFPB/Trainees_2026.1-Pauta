@@ -10,7 +10,7 @@ import { Logo } from "@/components/brand/Logo";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/primitives/ThemeToggle";
 import { NAV_APP, NAV_CONTA, type NavItem } from "@/lib/nav";
-import { createClient } from "@/lib/supabase/client";
+import { signOut } from "@/app/auth/actions";
 
 // CONTA sem `exact`: mantém "Minha conta" ativo em todas as sub-rotas (/conta/*).
 const CONTA: NavItem = { href: "/conta", label: "Minha conta" };
@@ -68,9 +68,7 @@ export function AppShell({
   const [drawer, setDrawer] = useState(false);
 
   const handleSignOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/";
+    await signOut();
   };
 
   const contaMenu = (
