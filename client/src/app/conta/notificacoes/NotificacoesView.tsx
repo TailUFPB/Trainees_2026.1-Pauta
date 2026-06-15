@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/primitives/Button";
 import { api } from "@/lib/api/client";
 import type { Notificacao, PreferenciasNotificacao } from "@/lib/api/types";
+import { ativarPush } from "@/lib/firebase/push";
 
 interface Props {
   initial: Notificacao[];
@@ -46,6 +47,14 @@ const PREFERENCE_OPTIONS: Array<{
     description: "Avisar quando houver novidades sobre politicos que voce segue.",
   },
 ];
+
+// Mensagens de falha ao ativar push, por motivo retornado por ativarPush().
+const PUSH_ERROR_MESSAGES: Record<string, string> = {
+  "sem-config": "Notificações push ainda não estão configuradas neste ambiente.",
+  "nao-suportado": "Este navegador não suporta notificações push.",
+  "permissao-negada": "Permissão de notificações negada pelo navegador.",
+  erro: "Não foi possível ativar as notificações push.",
+};
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -88,9 +97,23 @@ export function NotificacoesView({ initial, initialPrefs }: Props) {
     const next = !prefs[key];
     setSavingPreference(key);
     setError(null);
+    setNotice(null);
     try {
+      // Ao LIGAR push: pede permissão, registra SW e salva o token antes de
+      // persistir a preferência. Se falhar, não liga o toggle.
+      if (key === "push" && next) {
+        const resultado = await ativarPush();
+        if (!resultado.ok) {
+          setError(PUSH_ERROR_MESSAGES[resultado.motivo] ?? PUSH_ERROR_MESSAGES.erro);
+          return;
+        }
+      }
+
       const result = await api.atualizarPreferenciasNotificacao({ [key]: next });
       setPrefs(result.prefs_notificacao);
+      if (key === "push" && next) {
+        setNotice("Notificações push ativadas neste dispositivo.");
+      }
     } catch {
       setError("Não foi possível salvar a preferência.");
     } finally {
