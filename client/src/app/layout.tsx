@@ -49,7 +49,7 @@ export default async function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: noFlashThemeScript }} />
       </head>
-      <body className="min-h-full flex flex-col bg-bg text-text">
+      <body className="min-h-full flex flex-col bg-bg text-text" suppressHydrationWarning>
         <a href="#main-content" className="skip-link">
           Pular pro conteúdo principal
         </a>
