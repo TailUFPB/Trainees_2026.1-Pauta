@@ -37,9 +37,28 @@ class Settings(BaseSettings):
         description="Chave HMAC do autor_lookup (32+ bytes, distinta de autor_cifra_key).",
     )
 
-    # Dimensão do embedding — DEVE bater com o modelo do colega da recomendação.
-    # Gemini text-embedding-004 = 768; OpenAI text-embedding-3-small = 1536.
+    # Dimensão do embedding — DEVE bater com o modelo da recomendação.
+    # paraphrase-multilingual-mpnet-base-v2 (SBERT) = 768.
     embedding_dim: int = 768
+
+    # Recomendação — modelo de embedding e centróide do corpus (pipeline offline).
+    # MESMO modelo/centróide usados em recommendation/ para gerar os perfis dos políticos;
+    # gerar_embedding projeta a query do cidadão neste mesmo espaço 768d.
+    embedding_model_name: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    # Caminho do centroid.npy (asset versionado, exportado de recommendation/models/).
+    centroid_path: str = "app/assets/centroid.npy"
+    # Evidências legislativas usadas para explicar cada match sem gerar texto por LLM.
+    proposal_embeddings_path: str = "app/assets/proposal_embeddings.npy"
+    proposal_embeddings_meta_path: str = "app/assets/proposal_embeddings_meta.csv"
+    # Aquece o modelo no startup (evita cold start no 1º request). Em dev/test deixe
+    # False para não baixar o BERT; em produção defina EMBEDDING_WARMUP=true.
+    embedding_warmup: bool = False
+
+    # LLM (Groq) p/ justificativas de recomendação em tempo real. Sem chave, o sistema
+    # cai no texto-base (template de temas) — nada quebra.
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+    llm_timeout_seconds: float = 8.0
 
     # Regras de negócio do fluxo de problemas.
     confianca_minima_revisao: float = 0.6
