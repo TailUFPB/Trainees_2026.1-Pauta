@@ -7,8 +7,8 @@
 #   embed_query() projeta a query EXATAMENTE como os perfis foram projetados
 #   (BERT normalizado -> projetar_no_espaco = subtrai o MESMO centróide + re-normaliza L2).
 #   Esta é a mesma transformação reaproveitada de embeddings.py. O backend
-#   (server/app/services/recomendacao.py) replica esta lógica em produção; um teste de
-#   paridade garante que os dois caminhos produzem o mesmo vetor (cosine > 0.99).
+#   (server/app/services/recomendacao.py) replica esta lógica em produção (mesma transformação);
+#   manter os dois caminhos sincronizados é um invariante manual.
 #
 # Este módulo é a DEMO/validação offline. Em produção o ranking roda no Postgres via
 # pgvector (índice HNSW de cosseno) — ver server/. Aqui o ranking é um produto escalar
