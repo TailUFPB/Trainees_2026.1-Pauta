@@ -3,14 +3,15 @@ import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { Heading } from "@/components/primitives/Heading";
 import { buscarFeed } from "@/lib/api/feed.server";
 import { getServerUser } from "@/lib/auth/getServerSession";
-import { FeedGate } from "./FeedGate";
 import { FeedView } from "./FeedView";
 
-// Feed comunitário — destino primário público (linkado no navbar). Como o
-// backend exige sessão, deslogados veem um gate de login; logados recebem a
-// primeira página via SSR para evitar flash de skeleton.
+// Feed comunitário — leitura pública (GET /feed é público). Publicar exige
+// login: o Composer só aparece logado; deslogado vê um CTA de entrar.
 export default async function FeedPage() {
-  const user = await getServerUser();
+  const [user, inicial] = await Promise.all([
+    getServerUser(),
+    buscarFeed({ limite: 20 }),
+  ]);
 
   return (
     <Container className="max-w-2xl py-6">
@@ -18,11 +19,7 @@ export default async function FeedPage() {
       <Heading level={1} size="h1" className="mb-6 mt-2">
         Feed
       </Heading>
-      {user ? (
-        <FeedView inicial={await buscarFeed({ limite: 20 })} />
-      ) : (
-        <FeedGate />
-      )}
+      <FeedView inicial={inicial} podePublicar={!!user} />
     </Container>
   );
 }
