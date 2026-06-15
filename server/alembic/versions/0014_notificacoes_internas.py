@@ -1,7 +1,7 @@
 """notificacoes internas
 
-Revision ID: 0012
-Revises: 0011
+Revision ID: 0014
+Revises: 0013
 Create Date: 2026-06-09
 
 Cria a central interna de notificacoes do usuario. Email e push continuam como
@@ -15,8 +15,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-revision: str = "0012"
-down_revision: Union[str, None] = "0011"
+revision: str = "0014"
+down_revision: Union[str, None] = "0013"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -26,6 +26,7 @@ _TIPOS_EVENTO = (
     "politico.status_alterado",
     "politico.atualizado",
     "usuario.atualizado",
+    "publicacao.criada",
     "notificacao.teste",
 )
 

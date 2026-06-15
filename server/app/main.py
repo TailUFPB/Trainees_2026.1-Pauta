@@ -5,7 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
-from app.routers import notificacoes, politicos, problemas, recomendacoes, usuarios
+from app.routers import (
+    feed,
+    notificacoes,
+    politicos,
+    problemas,
+    publicacoes,
+    recomendacoes,
+    usuarios,
+)
 
 settings = get_settings()
 
@@ -27,11 +35,12 @@ app.add_middleware(
 )
 
 app.include_router(problemas.router)
+app.include_router(publicacoes.router)
 app.include_router(recomendacoes.router)
 app.include_router(usuarios.router)
 app.include_router(politicos.router)
 app.include_router(notificacoes.router)
-
+app.include_router(feed.router)
 
 # Serve as fotos salvas localmente no fallback de dev (sem Supabase Storage).
 _uploads = Path("uploads")

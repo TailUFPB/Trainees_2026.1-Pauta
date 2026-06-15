@@ -5,7 +5,7 @@ import { AccountNav } from "./AccountNav";
 export default async function ContaLayout({ children }: { children: React.ReactNode }) {
   const user = await getServerUser();
   if (!user) {
-    redirect("/?login=1&redirectTo=/conta/reportes");
+    redirect("/?login=1&redirectTo=/conta");
   }
   return (
     <div className="flex flex-col">

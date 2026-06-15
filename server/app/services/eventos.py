@@ -22,6 +22,7 @@ TipoEvento = Literal[
     "politico.atualizado",
     "usuario.atualizado",
     "notificacao.teste",
+    "publicacao.criada",
 ]
 Prioridade = Literal["alta", "media", "baixa"]
 
