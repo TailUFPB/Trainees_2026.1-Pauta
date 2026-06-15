@@ -227,8 +227,34 @@ server-migrate-create: ## Cria nova migration (uso: make server-migrate-create M
 	@cd server && uv run alembic revision --autogenerate -m "$(MSG)"
 
 .PHONY: server-seed
-server-seed: _guard-local-db ## Popula a tabela políticos com dados de exemplo
-	@cd server && uv run python -m app.cli.seed_politicos
+server-seed: _guard-local-db ## Popula a tabela políticos a partir de recommendation/data/df_perfil.csv
+	@cd server && uv run python -m app.cli.seed_politicos ../recommendation/data/df_perfil.csv
+
+.PHONY: server-seed-vetores
+server-seed-vetores: _guard-local-db ## Popula embedding + cluster_id dos políticos (após server-seed e recommendation-build)
+	@mkdir -p server/app/assets
+	@cp recommendation/models/centroid.npy server/app/assets/centroid.npy
+	@cd server && uv run python -m app.cli.seed_vetores
+
+# ============================================================================
+# Recommendation (pipeline offline de ML — Python/PyTorch)
+# ============================================================================
+
+.PHONY: recommendation-install
+recommendation-install: ## Cria recommendation/.venv (uv, py3.12) e instala as deps de ML
+	@cd recommendation && uv venv --python 3.12 .venv
+	@cd recommendation && uv pip install --python .venv/bin/python -r requirements.txt
+
+.PHONY: recommendation-build
+recommendation-build: ## Build ATÔMICO dos artefatos: embeddings -> autoencoder -> clustering (mantém .npy/.csv em sincronia)
+	@cd recommendation && .venv/bin/python src/embeddings.py
+	@cd recommendation && .venv/bin/python src/train.py
+	@cd recommendation && .venv/bin/python src/clustering.py
+	@mkdir -p server/app/assets
+	@cp recommendation/models/centroid.npy server/app/assets/centroid.npy
+	@cp recommendation/models/proposal_embeddings.npy server/app/assets/proposal_embeddings.npy
+	@cp recommendation/models/proposal_embeddings_meta.csv server/app/assets/proposal_embeddings_meta.csv
+	@echo "[recommendation-build] Artefatos sincronizados; centróide e evidências exportados p/ o backend."
 
 # ============================================================================
 # Client (Next.js + npm)

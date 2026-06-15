@@ -28,7 +28,9 @@ async function handle<T>(resp: Response): Promise<T> {
 
 export const api = {
   // Mapa: lista problemas dentro de uma bounding box [minLng,minLat,maxLng,maxLat].
-  async listarProblemas(bbox?: [number, number, number, number]): Promise<Problema[]> {
+  async listarProblemas(
+    bbox?: [number, number, number, number],
+  ): Promise<Problema[]> {
     const qs = bbox ? `?bbox=${bbox.join(",")}` : "";
     return handle(await fetch(`${API_URL}/problemas${qs}`));
   },
@@ -60,21 +62,27 @@ export const api = {
     );
   },
 
-  async listarPoliticos(opts?: { limite?: number; offset?: number }): Promise<Politico[]> {
+  async gerarRecomendacoes(texto: string): Promise<Recomendacao> {
+    return handle(
+      await fetch(`${API_URL}/recomendacoes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
+        body: JSON.stringify({ texto }),
+      }),
+    );
+  },
+
+  async listarPoliticos(opts?: {
+    limite?: number;
+    offset?: number;
+  }): Promise<Politico[]> {
     const limite = opts?.limite ?? 50;
     const offset = opts?.offset ?? 0;
     return handle(
       await fetch(`${API_URL}/politicos?limite=${limite}&offset=${offset}`),
-    );
-  },
-
-  async definirInteresses(texto: string): Promise<unknown> {
-    return handle(
-      await fetch(`${API_URL}/usuarios/me/interesses`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify({ texto }),
-      }),
     );
   },
 
@@ -101,7 +109,10 @@ export const api = {
     return handle(
       await fetch(`${API_URL}/problemas/${id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
         body: JSON.stringify(body),
       }),
     );
