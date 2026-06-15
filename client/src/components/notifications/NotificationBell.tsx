@@ -4,6 +4,7 @@ import { Bell } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api/client";
+import { iniciarOuvinteForeground } from "@/lib/firebase/push";
 
 const REFRESH_MS = 30_000;
 
@@ -25,10 +26,19 @@ export function NotificationBell() {
     void refresh();
     const interval = window.setInterval(refresh, REFRESH_MS);
     window.addEventListener("pauta:notificacoes-atualizadas", refresh);
+
+    // Mensagens FCM com o app aberto: atualiza o contador e exibe notificação.
+    let pararOuvinte: (() => void) | null = null;
+    void iniciarOuvinteForeground().then((cleanup) => {
+      if (active) pararOuvinte = cleanup;
+      else cleanup();
+    });
+
     return () => {
       active = false;
       window.clearInterval(interval);
       window.removeEventListener("pauta:notificacoes-atualizadas", refresh);
+      pararOuvinte?.();
     };
   }, []);
 
