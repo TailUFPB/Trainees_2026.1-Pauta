@@ -14,7 +14,12 @@ export type TipoProblema =
   | "nenhum";
 
 export type Severidade = "baixa" | "media" | "alta" | "critica";
-export type StatusProblema = "aberto" | "em_andamento" | "resolvido";
+export type StatusProblema =
+  | "aberto"
+  | "em_andamento"
+  | "resolvido"
+  | "arquivado"
+  | "cancelado";
 
 export interface Problema {
   id: string;
@@ -32,11 +37,13 @@ export interface Problema {
   resolvido_por: string | null;
   resolvido_em: string | null;
   descricao: string | null;
+  autor_nome: string | null;
+  anonimo: boolean;
   created_at: string;
 }
 
-/** Versão pública de um problema — sem autor_id e descricao. */
-export type ProblemaPublico = Omit<Problema, "autor_id" | "descricao">;
+/** Versão pública de um problema — sem descricao (mantém autor_nome e anonimo). */
+export type ProblemaPublico = Omit<Problema, "descricao">;
 
 export interface PoliticoMatch {
   id: string;
