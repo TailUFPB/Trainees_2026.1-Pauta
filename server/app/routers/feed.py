@@ -7,10 +7,8 @@ import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.models.user import User
 from app.schemas.feed import ItemFeed, ItemFeedProblema, ItemFeedPublicacao
 
 router = APIRouter(prefix="/feed", tags=["feed"])
@@ -25,7 +23,6 @@ def listar_feed(
         description="ISO timestamp do último item visto (created_at). Paginação por cursor.",
     ),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),  # exige auth
 ) -> list[ItemFeed]:
     chave = settings.autor_cifra_key
 

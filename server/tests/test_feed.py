@@ -15,8 +15,22 @@ def _imagem_png() -> bytes:
     return buf.getvalue()
 
 
-def test_feed_exige_auth(client) -> None:
-    assert client.get("/feed").status_code == 401
+def test_feed_publico_sem_auth(client) -> None:
+    # Leitura do feed é pública (visitante deslogado pode ver a timeline).
+    assert client.get("/feed").status_code == 200
+
+
+def test_feed_publico_mostra_itens_de_terceiros(client, auth_headers) -> None:
+    # Um usuário autenticado publica; um visitante deslogado consegue ler.
+    client.post(
+        "/publicacoes",
+        json={"conteudo": "visivel pra todos", "anonimo": False},
+        headers=auth_headers,
+    )
+    resp = client.get("/feed?limite=10")  # sem headers
+    assert resp.status_code == 200
+    conteudos = [i.get("conteudo") for i in resp.json() if i["tipo"] == "publicacao"]
+    assert "visivel pra todos" in conteudos
 
 
 def test_feed_mistura_pub_e_problema_ordem_desc(client, auth_headers) -> None:
