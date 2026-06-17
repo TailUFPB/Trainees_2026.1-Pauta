@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="440" viewBox="0 0 1280 440" fill="none" role="img" aria-label="Pauta — aproximando cidadãos da política municipal">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#070a14"/>
+    </linearGradient>
+    <radialGradient id="glowOrange" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff6b35" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ff6b35" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowBlue" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2d9cff" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#2d9cff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <style>
+      .twk { animation: twk 3.4s ease-in-out infinite; }
+      .twk2 { animation: twk 4.6s ease-in-out infinite; }
+      .twk3 { animation: twk 5.5s ease-in-out infinite; }
+      @keyframes twk { 0%,100% { opacity:.35 } 50% { opacity:1 } }
+      .rise { animation: rise 1s cubic-bezier(.2,.7,.2,1) both; }
+      @keyframes rise { from { transform: translateY(14px) } to { transform: translateY(0) } }
+      .barpulse { animation: barpulse 4s ease-in-out infinite; }
+      @keyframes barpulse { 0%,100% { opacity:.8 } 50% { opacity:1 } }
+    </style>
+  </defs>
+
+  <!-- backdrop -->
+  <rect x="2" y="2" width="1276" height="436" rx="26" fill="url(#bg)" stroke="#1b2540" stroke-width="1.5"/>
+  <ellipse cx="470" cy="210" rx="420" ry="300" fill="url(#glowOrange)"/>
+  <ellipse cx="1080" cy="120" rx="360" ry="280" fill="url(#glowBlue)"/>
+
+  <!-- network motif: top-right -->
+  <g stroke="#2d9cff" stroke-width="1.1" opacity="0.55">
+    <line x1="1060" y1="72" x2="1110" y2="52"/>
+    <line x1="1110" y1="52" x2="1152" y2="92"/>
+    <line x1="1152" y1="92" x2="1192" y2="62"/>
+    <line x1="1152" y1="92" x2="1142" y2="132"/>
+    <line x1="1060" y1="72" x2="1092" y2="112"/>
+    <line x1="1192" y1="62" x2="1228" y2="96"/>
+    <line x1="1142" y1="132" x2="1176" y2="156"/>
+  </g>
+  <g fill="#2d9cff">
+    <circle class="twk"  cx="1060" cy="72"  r="3.4"/>
+    <circle class="twk2" cx="1110" cy="52"  r="3"/>
+    <circle class="twk3" cx="1152" cy="92"  r="4"/>
+    <circle class="twk"  cx="1192" cy="62"  r="3"/>
+    <circle class="twk2" cx="1228" cy="96"  r="3.4"/>
+    <circle class="twk3" cx="1142" cy="132" r="3"/>
+    <circle class="twk"  cx="1092" cy="112" r="3.2"/>
+    <circle class="twk2" cx="1176" cy="156" r="2.8"/>
+  </g>
+  <circle class="twk3" cx="1110" cy="52" r="2" fill="#ffd23f"/>
+  <circle class="twk"  cx="1228" cy="96" r="2" fill="#ff6b35"/>
+
+  <!-- network motif: bottom-left -->
+  <g stroke="#2d9cff" stroke-width="1.1" opacity="0.45">
+    <line x1="60" y1="332" x2="112" y2="360"/>
+    <line x1="112" y1="360" x2="152" y2="322"/>
+    <line x1="112" y1="360" x2="92" y2="402"/>
+    <line x1="152" y1="322" x2="210" y2="350"/>
+    <line x1="92" y1="402" x2="170" y2="384"/>
+    <line x1="170" y1="384" x2="210" y2="350"/>
+  </g>
+  <g fill="#2d9cff">
+    <circle class="twk2" cx="60"  cy="332" r="3"/>
+    <circle class="twk3" cx="112" cy="360" r="3.6"/>
+    <circle class="twk"  cx="152" cy="322" r="3"/>
+    <circle class="twk2" cx="92"  cy="402" r="2.8"/>
+    <circle class="twk3" cx="170" cy="384" r="3.2"/>
+    <circle class="twk"  cx="210" cy="350" r="3"/>
+  </g>
+  <circle class="twk" cx="152" cy="322" r="2" fill="#ffd23f"/>
+
+  <!-- ===== brand lockup ===== -->
+  <g class="rise">
+    <!-- flag logo badge (88x88), redrawn from the app favicon -->
+    <g transform="translate(408,106)">
+      <rect width="88" height="88" rx="20" fill="#0a0e1a" stroke="#202a45" stroke-width="1.5"/>
+      <g transform="translate(11,8) scale(2.15)">
+        <path d="M10 5.5H23L19 10L23 14.5H10Z" fill="#ff6b35"/>
+        <path d="M10 5V24" stroke="#fafaf7" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="10" cy="24" r="2.4" fill="#fafaf7"/>
+      </g>
+    </g>
+
+    <!-- PAUTA wordmark: hand-drawn strokes, font-independent -->
+    <g transform="translate(530,106) scale(0.733)"
+       fill="none" stroke="#f4f4f0" stroke-width="26"
+       stroke-linecap="round" stroke-linejoin="round">
+      <!-- P -->
+      <path d="M14 14 V106 M14 14 H46 C66 14 66 60 46 60 H14"/>
+      <!-- A -->
+      <path d="M83 106 L126 14 L169 106 M97 72 H155"/>
+      <!-- U -->
+      <path d="M194 14 V78 Q194 106 226 106 Q258 106 258 78 V14"/>
+      <!-- T -->
+      <path d="M290 14 H354 M322 14 V106"/>
+      <!-- A -->
+      <path d="M383 106 L426 14 L469 106 M397 72 H455"/>
+    </g>
+
+    <!-- accent underline (flag-orange) with a little notch -->
+    <g class="barpulse">
+      <path d="M530 252 H846" stroke="#ff6b35" stroke-width="6" stroke-linecap="round"/>
+      <path d="M838 252 l-12 -7 v14 z" fill="#ff6b35"/>
+    </g>
+  </g>
+
+  <!-- tagline -->
+  <text x="640" y="312" text-anchor="middle"
+        font-family="'Bricolage Grotesque','Trebuchet MS',Verdana,system-ui,sans-serif"
+        font-size="26" font-weight="600" fill="#d9dee9" class="rise">
+    Aproxima cidadãos, problemas urbanos e representantes
+  </text>
+  <text x="640" y="346" text-anchor="middle"
+        font-family="'Bricolage Grotesque','Trebuchet MS',Verdana,system-ui,sans-serif"
+        font-size="26" font-weight="600" fill="#d9dee9" class="rise">
+    em uma <tspan fill="#2d9cff">única plataforma</tspan>.
+  </text>
+
+  <!-- pill row -->
+  <g font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="14" fill="#94a3b8" text-anchor="middle">
+    <g transform="translate(424,386)"><rect x="-60" y="-16" width="120" height="32" rx="16" fill="#0e1424" stroke="#26314f"/><circle cx="-40" cy="0" r="3.5" fill="#ff6b35"/><text x="6" y="5">Mapa</text></g>
+    <g transform="translate(556,386)"><rect x="-52" y="-16" width="104" height="32" rx="16" fill="#0e1424" stroke="#26314f"/><circle cx="-32" cy="0" r="3.5" fill="#2d9cff"/><text x="6" y="5">Feed</text></g>
+    <g transform="translate(720,386)"><rect x="-96" y="-16" width="192" height="32" rx="16" fill="#0e1424" stroke="#26314f"/><circle cx="-76" cy="0" r="3.5" fill="#ffd23f"/><text x="10" y="5">Recomendação</text></g>
+    <g transform="translate(884,386)"><rect x="-84" y="-16" width="168" height="32" rx="16" fill="#0e1424" stroke="#26314f"/><circle cx="-64" cy="0" r="3.5" fill="#34d399"/><text x="10" y="5">Notificações</text></g>
+  </g>
+
+  <!-- grain -->
+  <rect x="2" y="2" width="1276" height="436" rx="26" filter="url(#grain)" opacity="0.05"/>
+</svg>
