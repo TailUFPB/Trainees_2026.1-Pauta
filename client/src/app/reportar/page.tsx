@@ -1,6 +1,6 @@
 "use client";
-import { Camera, Loader2, MapPin } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { Camera, Loader2, MapPin, X } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Badge } from "@/components/primitives/Badge";
 import { Button } from "@/components/primitives/Button";
 import { Card } from "@/components/primitives/Card";
@@ -14,15 +14,59 @@ import type { Problema } from "@/lib/api/types";
 import { useSession } from "@/lib/hooks/useSession";
 import { useLoginModal } from "@/components/auth/LoginModalProvider";
 
+// Formatos aceitos pelo backend (validar_imagem). TIFF/HEIC não renderizam no
+// browser e dariam 415 no envio — barramos aqui com mensagem clara.
+const TIPOS_FOTO_OK = ["image/jpeg", "image/png", "image/webp"];
+const MAX_FOTO_BYTES = 8 * 1024 * 1024; // 8 MB — mesmo limite do backend.
+
 export default function ReportarPage() {
   const { user, loading: sessionLoading } = useSession();
   const { open } = useLoginModal();
   const [foto, setFoto] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(null);
   const [descricao, setDescricao] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<Problema | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const inputFotoRef = useRef<HTMLInputElement>(null);
+
+  // Libera o object URL do preview ao trocar/desmontar (evita vazamento).
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const onSelecionarFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!TIPOS_FOTO_OK.includes(file.type)) {
+      setError("Formato não suportado. Use JPEG, PNG ou WEBP.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_FOTO_BYTES) {
+      setError("Imagem maior que 8 MB.");
+      e.target.value = "";
+      return;
+    }
+    setError(null);
+    setPreviewUrl((url) => {
+      if (url) URL.revokeObjectURL(url);
+      return URL.createObjectURL(file);
+    });
+    setFoto(file);
+  };
+
+  const limparFoto = () => {
+    setFoto(null);
+    setPreviewUrl((url) => {
+      if (url) URL.revokeObjectURL(url);
+      return null;
+    });
+    if (inputFotoRef.current) inputFotoRef.current.value = "";
+  };
 
   const handleGeo = () => {
     if (!("geolocation" in navigator)) {
@@ -79,21 +123,46 @@ export default function ReportarPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
-            <label className="flex flex-col gap-2 text-sm font-medium text-text">
+            <div className="flex flex-col gap-2 text-sm font-medium text-text">
               Foto do problema
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border border-border-strong bg-surface px-4 text-sm text-text hover:border-text">
                   <Camera className="h-4 w-4" />
-                  {foto ? foto.name : "Escolher arquivo"}
+                  {foto ? "Trocar arquivo" : "Escolher arquivo"}
                   <input
+                    ref={inputFotoRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     className="hidden"
-                    onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
+                    onChange={onSelecionarFoto}
                   />
                 </label>
+                {foto ? (
+                  <span className="max-w-[200px] truncate text-sm font-normal text-text-muted">
+                    {foto.name}
+                  </span>
+                ) : null}
               </div>
-            </label>
+              {previewUrl ? (
+                <div className="relative mt-1 w-fit">
+                  {/* Preview local (object URL). CSP permite blob:. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewUrl}
+                    alt="Pré-visualização da foto do problema"
+                    className="max-h-64 rounded-md border border-border object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={limparFoto}
+                    aria-label="Remover foto"
+                    className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-bg/80 text-text shadow-1 backdrop-blur hover:bg-bg"
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
+            </div>
 
             <div className="flex flex-col gap-2 text-sm font-medium text-text">
               Localização
