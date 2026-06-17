@@ -1,6 +1,4 @@
-import io
 from datetime import UTC, datetime
-from typing import BinaryIO
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -9,7 +7,6 @@ from fastapi.security import HTTPAuthorizationCredentials
 from geoalchemy2.elements import WKTElement
 from geoalchemy2.functions import ST_X, ST_Y, ST_MakeEnvelope
 from jose import jwt as _jose_jwt
-from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -28,12 +25,10 @@ from app.schemas.problema import (
 )
 from app.services import eventos, storage, visao
 from app.services.eventos import Prioridade
+from app.services.imagem import ler_upload_limitado, validar_imagem
 
 router = APIRouter(prefix="/problemas", tags=["problemas"])
 settings = get_settings()
-
-_CONTENT_TYPES_OK = {"image/jpeg", "image/png", "image/webp"}
-_CHUNK_BYTES = 64 * 1024
 
 # Transições que o autor pode realizar no próprio reporte. Demais transições
 # (em_andamento, arquivado, etc.) ficam fora desta fatia até existir RBAC.
@@ -42,48 +37,6 @@ _TRANSICOES_AUTOR_PERMITIDAS: set[tuple[str, str]] = {
     ("aberto", "resolvido"),
     ("em_andamento", "resolvido"),
 }
-
-
-def _ler_upload_limitado(file: BinaryIO, max_bytes: int) -> bytes:
-    """Lê o upload em chunks abortando com 413 antes de carregar mais que max_bytes na RAM."""
-    buffer = bytearray()
-    while True:
-        chunk = file.read(_CHUNK_BYTES)
-        if not chunk:
-            break
-        buffer.extend(chunk)
-        if len(buffer) > max_bytes:
-            raise HTTPException(
-                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                f"Imagem maior que {max_bytes // (1024 * 1024)} MB.",
-            )
-    return bytes(buffer)
-
-
-def _validar_imagem(conteudo: bytes, content_type: str) -> None:
-    if content_type not in _CONTENT_TYPES_OK:
-        raise HTTPException(
-            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            f"Formato não suportado: {content_type}. Use JPEG, PNG ou WEBP.",
-        )
-    if len(conteudo) > settings.max_upload_bytes:
-        raise HTTPException(
-            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            f"Imagem maior que {settings.max_upload_bytes // (1024 * 1024)} MB.",
-        )
-    try:
-        with Image.open(io.BytesIO(conteudo)) as img_verify:
-            img_verify.verify()
-    except (UnidentifiedImageError, OSError) as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Imagem inválida.") from exc
-    # PIL exige reabrir o arquivo após verify() para acessar size/pixels (estado indefinido).
-    with Image.open(io.BytesIO(conteudo)) as img:
-        largura, altura = img.size
-    if min(largura, altura) < settings.resolucao_minima_px:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"Resolução mínima é {settings.resolucao_minima_px}px no menor lado.",
-        )
 
 
 def _prioridade(severidade: Severidade, confianca: float) -> Prioridade:
@@ -171,8 +124,8 @@ def criar_problema(
     Quando `anonimo=true`, autor_cifrado e autor_lookup ficam NULL — ninguém
     recupera identidade, nem com as chaves.
     """
-    conteudo = _ler_upload_limitado(foto.file, settings.max_upload_bytes)
-    _validar_imagem(conteudo, foto.content_type or "")
+    conteudo = ler_upload_limitado(foto.file, settings.max_upload_bytes)
+    validar_imagem(conteudo, foto.content_type or "")
 
     foto_url = storage.salvar_foto(conteudo, foto.content_type or "image/jpeg")
     classificacao = visao.classificar(conteudo)
