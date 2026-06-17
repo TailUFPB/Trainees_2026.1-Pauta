@@ -1,6 +1,7 @@
 import { getServerSession } from "@/lib/auth/getServerSession";
 import type {
   Notificacao,
+  Politico,
   PreferenciasNotificacao,
   Problema,
   ProblemaPublico,
@@ -22,6 +23,18 @@ async function handle<T>(resp: Response): Promise<T> {
 }
 
 export const apiServer = {
+  // Catálogo público de políticos — sem auth. URL absoluta porque roda no SSR
+  // (o wrapper client usa base relativa `/api/backend`, que o fetch do Node rejeita).
+  async listarPoliticos(opts?: { limite?: number; offset?: number }): Promise<Politico[]> {
+    const limite = opts?.limite ?? 50;
+    const offset = opts?.offset ?? 0;
+    return handle(
+      await fetch(`${API_URL}/politicos?limite=${limite}&offset=${offset}`, {
+        cache: "no-store",
+      }),
+    );
+  },
+
   async meusProblemas(opts?: {
     status?: string[];
     limite?: number;
