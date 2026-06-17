@@ -56,7 +56,15 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: noFlashThemeScript }} />
+        {/* O navegador remove o atributo `nonce` do DOM depois de aplicar a CSP,
+            então o valor difere do que o React renderiza no cliente. O script
+            continua válido (autorizado pelo nonce); suppressHydrationWarning só
+            silencia o falso mismatch de hydration nesse atributo. */}
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: noFlashThemeScript }}
+        />
       </head>
       <body className="min-h-full flex flex-col bg-bg text-text" suppressHydrationWarning>
         <a href="#main-content" className="skip-link">
